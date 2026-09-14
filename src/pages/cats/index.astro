@@ -9,7 +9,10 @@ import { getCollection } from "astro:content";
 const cats = await getCollection("cats");
 ---
 
-<Layout>
+<Layout
+	title="Adoptable Cats"
+	description="Browse the cats currently available for adoption and find your new companion."
+>
 	<Section class:list={"background-pattern"}>
 		<Container>
 			<Heading>

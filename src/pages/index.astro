@@ -11,9 +11,10 @@ import ShowCats from "~/components/ShowCats.astro";
 import ShowBlogs from "~/components/ShowBlogs.astro";
 import Heading from "~/components/Heading.astro";
 import CatNameGenerator from "~/components/CatNameGenerator.astro";
+import { siteTitle, siteDescription } from "~/data/config";
 
 // Images
-import CatBackground from "~/assets/images/pexels-thirdman-8942612.webp";
+import CatBackground from "~/assets/images/meepal-hero.png";
 import CatOne from "~/assets/images/pexels-chevonrossouw-2558605.jpg";
 import CatTwo from "~/assets/images/pexels-minan1398-1003994.jpg";
 
@@ -38,7 +39,7 @@ const faq = [
 ];
 ---
 
-<Layout title="Home" pageTitle="Home" description="Welcome to our pet shelter!">
+<Layout title={siteTitle} description={siteDescription} exactTitle>
 	<Section class:list={"relative"}>
 		<Picture
 			src={CatBackground}

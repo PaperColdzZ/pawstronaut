@@ -8,7 +8,10 @@ import CardBlogPost from "~/components/CardBlogPost.astro";
 const posts = await getCollection("blog");
 ---
 
-<Layout>
+<Layout
+	title="Pet Care Articles"
+	description="Browse our latest articles on pet care, behavior, nutrition, and wellbeing."
+>
 	<Section>
 		<Container>
 			<Heading>

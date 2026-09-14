@@ -1,5 +1,5 @@
 {
-  "name": "pawstronaut",
+	"name": "meepal",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
@@ -11,6 +11,7 @@
   "dependencies": {
     "@astrojs/alpinejs": "^0.5.0",
     "@astrojs/mdx": "^5.0.0",
+    "@astrojs/sitemap": "^3.7.4",
     "@playform/inline": "^0.1.2",
     "@tailwindcss/vite": "^4.2.1",
     "@types/alpinejs": "^3.13.11",

@@ -1,10 +1,18 @@
 // Global variables
+
+/**
+ * NOTE: siteName / siteTitle / siteDescription / siteSlogan are placeholder copy.
+ * Replace them with the final brand copy before launch.
+ */
 export const siteLang = "en-US";
 export const siteCurrency = "USD";
-export const siteDomain = "pawstronaut.com";
-export const siteName = "Pawstronaut";
-export const siteSlogan = "The best pet shelter in the galaxy!";
-export const themeColor = "#FF0000";
+export const siteDomain = "meepal.pet";
+export const siteName = "Meepal";
+export const siteSlogan = "Pet care, simplified.";
+export const siteTitle = "Meepal \u2014 Pet Care, Simplified";
+export const siteDescription =
+	"Practical pet care guides, tips, and answers for dog and cat owners.";
+export const themeColor = "#14b8a6";
 
 export const phone = {
 	href: "tel:+123456789",
@@ -12,8 +20,8 @@ export const phone = {
 };
 
 export const email = {
-	href: "mailto:info@pawstronaut.com",
-	label: "info@pawstronaut.com",
+	href: "mailto:info@meepal.pet",
+	label: "info@meepal.pet",
 };
 
 export const address = {

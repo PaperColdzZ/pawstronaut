@@ -1,106 +1,62 @@
-# Pawstronaut
+# Meepal
 
-Pawstronaut is a free theme for the Astro framework, designed specifically for animal shelters. It provides a beautiful and functional starting point for your next animal shelter website. Whether you're running a cat shelter, dog shelter, or any other type of animal rescue organization, Pawstronaut has you covered with its clean design and easy-to-use components.
+Pet care content site built with [Astro](https://astro.build), Tailwind CSS v4, and Alpine.js.
 
-## 🌟 About Pawstronaut
+Production domain: **https://meepal.pet**
 
-Pawstronaut is perfect for animal shelter owners, developers, and designers who want to quickly set up a stylish and responsive website. It leverages modern web technologies to ensure a smooth and performant user experience.
+## Getting started
 
-## 🛠️ Technologies Used
-
--   **Astro**: The core framework for building fast, content-focused websites.
--   **TailwindCSS**: A utility-first CSS framework for rapid UI development.
--   **Alpine.js**: A lightweight JavaScript framework for adding interactivity.
-
-## 🚀 Installation and Deployment
-
-To get started with Pawstronaut, follow these steps:
-
-1. **Clone Pawstronaut**:
-
-    ```sh
-    git clone https://github.com/your-repo/Pawstronaut.git
-    ```
-
-2. **Install Dependencies**:
-
-    ```sh
-    npm install
-    ```
-
-3. **Run Development Server**:
-
-    ```sh
-    npm run dev
-    ```
-
-4. **Build for Production**:
-
-    ```sh
-    npm run build
-    ```
-
-## 📂 Project Structure
-
-Inside of your Pawstronaut project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-│   └── favicon.svg
-├── src/
-│   ├── assets/
-│   ├── components/
-│   ├── layouts/
-│   │   └── Layout.astro
-│   ├── pages/
-│   │   ├── index.astro
-│   │   ├── about-us.astro
-│   │   ├── blog/
-│   │   ├── cats/
-│   │   ├── contact.astro
-│   │   └── privacy-policy.mdx
-│   └── styles/
-└── package.json
+```sh
+npm install
+npm run dev      # dev server
+npm run build    # static output into ./dist
+npm run preview  # preview the production build locally
 ```
 
-## 📄 Premade Pages
+## Project structure
 
--   Home
--   About Us
--   Blog
--   Cats
--   Contact
--   Privacy Policy
+```text
+public/            static assets served as-is (favicons, robots.txt, fonts, og-image.jpg)
+src/
+  assets/          images and icons processed by Astro's image pipeline
+  components/      UI building blocks
+  content/blog/    blog posts (Markdown)
+  data/            site config, navigation, and JSON-backed content
+  layouts/         Layout.astro is the single site shell
+  pages/           file-based routes
+  styles/          global.css (Tailwind v4 theme + utilities)
+  utils/           shared helpers
+```
 
-## 🧩 Available Components
+## Content
 
--   Article
--   Badge
--   Button
--   Card
--   CardBlogPost
--   CardCat
--   CardMember
--   CallToAction
--   Container
--   Faq
--   Footer
--   FormAdoption
--   FormContactastro
--   Header
--   Heading
--   Hero
--   LogoContainer
--   Map
--   Members
--   Section
--   ShowBlogs
--   ShowCats
--   SocialMediaIcons
--   TableHours
--   WideImage
+Editable content lives in two places:
 
-## 👀 Stuck?
+- `src/data/config.ts` — brand name, domain, slogan, contact details, opening hours, social links
+- `src/data/menus.js` — main navigation
 
-If you have any questions or need help with Pawstronaut, feel free to reach out to me at info@wpinfusion.com, or open an issue on the [Pawstronaut GitHub repository](https://github.com/wpinfusion/pawstronaut)
+Collection-backed content:
+
+- `src/data/cats.json` — adoptable cats. The `id` field becomes the URL (`/cats/reckoning/`).
+- `src/data/members.json` — team members shown on the About page.
+- `src/content/blog/*.md` — blog posts. **The URL comes from the frontmatter `slug`, not the filename**, so `new-cat.md` with `slug: new-arrival-luna` is served at `/blog/new-arrival-luna/`.
+
+## SEO
+
+Every page passes `title` and `description` to `src/layouts/Layout.astro`, which renders the page title, meta description, canonical URL, and the Open Graph and Twitter tags. The social share image is `public/images/og-image.jpg`.
+
+`@astrojs/sitemap` writes `sitemap-index.xml` at build time, and `public/robots.txt` points crawlers at it. `site` in `astro.config.mjs` must stay in sync with the production domain — it is the base for canonical URLs, Open Graph URLs, and the sitemap.
+
+## Deployment
+
+Output is fully static (`output: "static"`), so the contents of `dist/` can be served by any static host.
+
+## Credits
+
+Built on the [Pawstronaut](https://github.com/wpinfusion/pawstronaut) theme by WP Infusion, MIT licensed. See `LICENSE`.
+
+## Notes for contributors
+
+- Client-side scripts must listen for `astro:page-load`, not `DOMContentLoaded`, because view transitions swap the page without a reload.
+- Adding a link or resource means updating the navigation in `src/data/menus.js` and, for new routes, nothing else — the sitemap picks up new routes automatically.
+

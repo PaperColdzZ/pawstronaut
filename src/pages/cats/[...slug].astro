@@ -6,6 +6,7 @@ import Button from "~/components/Button.astro";
 import FormAdoption from "~/components/forms/FormAdoption.astro";
 import { Image } from "astro:assets";
 import { getCollection } from "astro:content";
+import { clampDescription } from "~/utils/seo";
 
 export async function getStaticPaths() {
 	const cats = await getCollection("cats");
@@ -17,9 +18,16 @@ export async function getStaticPaths() {
 
 const { cat } = Astro.props;
 // console.log(cat);
+
+const description = clampDescription(
+	cat.data.description ?? `Meet ${cat.data.name}, a ${cat.data.breed} looking for a new home.`,
+);
 ---
 
-<Layout>
+<Layout
+	title={`${cat.data.name} \u2014 Adoptable Cat`}
+	description={description}
+>
 	<Section class="bg-white">
 		<Container>
 			<div class="bg-white max-w-4xl mx-auto">

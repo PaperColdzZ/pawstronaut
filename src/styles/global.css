@@ -204,6 +204,16 @@ main > section:first-child {
 	padding-top: var(--header-height);
 }
 
+/* Fallback so the first section is not hidden behind the fixed header
+   before Header.astro measures and overwrites this at runtime. */
+:root {
+	--header-height: 7rem;
+}
+
+main > section:first-child {
+	padding-top: var(--header-height);
+}
+
 section.bg-white + section.bg-white > .container {
 	@apply pt-0;
 }

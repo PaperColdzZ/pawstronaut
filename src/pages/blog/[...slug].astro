@@ -5,6 +5,7 @@ import Container from "~/components/Container.astro";
 import Article from "~/components/Article.astro";
 import HeadingBlog from "~/components/HeadingBlog.astro";
 import { getCollection, render } from "astro:content";
+import { clampDescription } from "~/utils/seo";
 
 export async function getStaticPaths() {
 	const posts = await getCollection("blog");
@@ -16,9 +17,17 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const { Content } = await render(post);
+
+const description = clampDescription(
+	post.data.excerpt ?? `An article from our pet care blog: ${post.data.title}.`,
+);
 ---
 
-<Layout>
+<Layout
+	title={post.data.title}
+	description={description}
+	type="article"
+>
 	<Section>
 		<Container>
 			<Article contain>

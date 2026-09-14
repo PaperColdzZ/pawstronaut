@@ -3,9 +3,36 @@ import "~/styles/global.css";
 import { ClientRouter } from "astro:transitions";
 import Header from "~/components/Header.astro";
 import Footer from "~/components/Footer.astro";
-const { pageTitle, title, description } = Astro.props;
-const baseUrl = `${Astro.url.protocol}//${Astro.url.host}`;
 import { siteName, siteLang, themeColor } from "~/data/config";
+
+interface Props {
+	/** Page title without the site suffix. */
+	title: string;
+	/** Meta description, 50-160 chars recommended. */
+	description: string;
+	/** Social share image, either a path in /public or an absolute URL. */
+	image?: string;
+	/** Open Graph object type. */
+	type?: "website" | "article";
+	/** Emit noindex,nofollow for this page. */
+	noindex?: boolean;
+	/** Use `title` verbatim instead of appending " | siteName". */
+	exactTitle?: boolean;
+}
+
+const {
+	title,
+	description,
+	image = "/images/og-image.jpg",
+	type = "website",
+	noindex = false,
+	exactTitle = false,
+} = Astro.props;
+
+const origin = Astro.site ?? new URL(Astro.url.origin);
+const canonical = new URL(Astro.url.pathname, origin).href;
+const ogImage = new URL(image, origin).href;
+const pageTitle = exactTitle ? title : `${title} | ${siteName}`;
 ---
 
 <!doctype html>
@@ -14,10 +41,11 @@ import { siteName, siteLang, themeColor } from "~/data/config";
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="theme-color" content={themeColor} />
+		<meta name="generator" content={Astro.generator} />
+		<title>{pageTitle}</title>
 		<meta name="description" content={description} />
-		<meta name="robots" content="index,follow" />
-		<meta name="googlebot" content="index,follow" />
-		<link rel="author" href="humans.txt" />
+		<link rel="canonical" href={canonical} />
+		<meta name="robots" content={noindex ? "noindex,nofollow" : "index,follow"} />
 
 		<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -26,20 +54,21 @@ import { siteName, siteLang, themeColor } from "~/data/config";
 		<meta name="apple-mobile-web-app-title" content={siteName} />
 		<link rel="manifest" href="/site.webmanifest" />
 
-		<meta property="og:url" content={Astro.url} />
-		<meta property="og:type" content="website" />
-		<meta property="og:title" content={title} />
-		<meta property="og:image" content={`${baseUrl}/images/og-image.jpg`} />
-		<meta property="og:description" content={description} />
-		<meta property="og:site_name" content="WP Infusion" />
+		<meta property="og:site_name" content={siteName} />
 		<meta property="og:locale" content={siteLang} />
+		<meta property="og:type" content={type} />
+		<meta property="og:url" content={canonical} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:image" content={ogImage} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
 
-		<meta name="twitter:card" content="summary" />
-		<meta name="twitter:url" content={Astro.url} />
+		<meta name="twitter:card" content="summary_large_image" />
 		<meta name="twitter:title" content={title} />
 		<meta name="twitter:description" content={description} />
-		<!-- <meta name="twitter:image" content={`${baseUrl}/images/og-image.jpg`} /> -->
-		<title>{pageTitle}</title>
+		<meta name="twitter:image" content={ogImage} />
+
 		<ClientRouter />
 	</head>
 	<body>
