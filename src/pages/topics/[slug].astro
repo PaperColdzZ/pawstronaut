@@ -1,0 +1,41 @@
+---
+import Layout from "~/layouts/Layout.astro";
+import BlogArchive from "~/components/BlogArchive.astro";
+import { getPostsByTopic, getPublishedTopics, paginate, totalPagesFor } from "~/utils/blog";
+import { clampDescription } from "~/utils/seo";
+
+export async function getStaticPaths() {
+	// Only topics with posts get a page, so nothing here is ever an empty archive.
+	const topics = await getPublishedTopics();
+
+	return Promise.all(
+		topics.map(async (topic) => {
+			const posts = await getPostsByTopic(topic.id);
+			return {
+				params: { slug: topic.id },
+				props: {
+					topic,
+					totalPages: totalPagesFor(posts),
+					posts: paginate(posts, 1),
+				},
+			};
+		}),
+	);
+}
+
+const { topic, posts, totalPages } = Astro.props;
+const topics = await getPublishedTopics();
+---
+
+<Layout title={topic.name} description={clampDescription(topic.description)}>
+	<BlogArchive
+		title={topic.name}
+		description={topic.description}
+		posts={posts}
+		page={1}
+		totalPages={totalPages}
+		basePath={"/topics/" + topic.id}
+		topics={topics}
+		activeTopic={topic.id}
+	/>
+</Layout>

@@ -1,0 +1,32 @@
+[
+	{
+		"id": "health",
+		"name": "Health",
+		"description": "Symptoms, conditions, and when to call your vet."
+	},
+	{
+		"id": "nutrition",
+		"name": "Nutrition",
+		"description": "Feeding guides, portion sizes, and treat safety."
+	},
+	{
+		"id": "behavior",
+		"name": "Behavior",
+		"description": "Training, communication, and common behavior problems."
+	},
+	{
+		"id": "grooming",
+		"name": "Grooming",
+		"description": "Coat, nail, dental, and bathing care."
+	},
+	{
+		"id": "adoption",
+		"name": "Adoption",
+		"description": "Adopting, fostering, and settling a rescue pet in."
+	},
+	{
+		"id": "breeds",
+		"name": "Breeds",
+		"description": "Breed profiles, traits, and what to expect."
+	}
+]

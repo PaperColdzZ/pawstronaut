@@ -5,6 +5,8 @@ image: src/assets/images/pexels-minan1398-1003994.jpg
 imageAlt: image of cat
 excerpt: Introducing Luna, our newest resident at the shelter.
 publishDate: 2024-01-21
+updatedDate: 2024-02-05
+category: adoption
 ---
 
 We're excited to introduce Luna, the newest resident at our cat shelter! Luna is a beautiful and affectionate cat who has quickly won the hearts of our staff and volunteers.

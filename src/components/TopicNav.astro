@@ -1,0 +1,22 @@
+---
+const { topics = [], active = "", allHref = "/blog" } = Astro.props;
+
+const pill = "rounded-full px-4 py-1.5 text-base font-semibold transition";
+const idle = pill + " ring-1 ring-gray-200 hover:text-brand-fuchsia hover:ring-brand-fuchsia";
+const current = pill + " bg-brand-teal text-white hover:bg-brand-teal/80";
+---
+
+<nav aria-label="Topics" class="not-prose mb-12 flex flex-wrap gap-x-3 gap-y-3">
+	<a href={allHref} class={active ? idle : current} aria-current={active ? undefined : "page"}>All</a>
+	{
+		topics.map((topic: { id: string; name: string }) => (
+			<a
+				href={"/topics/" + topic.id}
+				class={active === topic.id ? current : idle}
+				aria-current={active === topic.id ? "page" : undefined}
+			>
+				{topic.name}
+			</a>
+		))
+	}
+</nav>

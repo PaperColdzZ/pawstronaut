@@ -5,6 +5,10 @@ image: src/assets/images/pexels-chevonrossouw-2558605.jpg
 imageAlt: image of cat
 excerpt: This is a simple blog post.
 publishDate: 2024-01-21
+category: adoption
+tags:
+  - adoption
+  - shelter
 ---
 
 Welcome to our cat shelter blog! We're thrilled to have you here and share our passion for helping cats find their forever homes.

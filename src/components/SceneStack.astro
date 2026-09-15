@@ -1,0 +1,107 @@
+---
+/**
+ * SceneStack —— 可点击切换显示顺序的「叠放卡片组」
+ *
+ * 用在首页「Life, with a little more life in it.」区块的右侧。
+ * 结构参考：D:\WorkSpace\meepal-site\meepal-home-v3.html 里的 <div class="scene-grid">（原版是三列平铺网格），
+ * 这里改造成叠在一起、点一下就翻到最前面的形式；样式按本项目的 token 重做（白底卡片 + 圆角 + 阴影）。
+ *
+ * 交互沿用项目已有的 Alpine.js（见 Faq.astro），不新增任何依赖。
+ */
+import { Image } from "astro:assets";
+
+export interface Scene {
+	/** 卡片配图（astro:assets 导入的图片资源） */
+	image: ImageMetadata;
+	/** 配图的替代文本 */
+	alt?: string;
+	/** 左上角的序号，如 01 / 02 / 03 */
+	number?: string;
+	/** 卡片标题 */
+	title?: string;
+	/** 卡片描述 */
+	text?: string;
+}
+
+interface Props {
+	scenes?: Scene[];
+}
+
+const { scenes = [] } = Astro.props;
+
+// Alpine 的组件状态。写在 frontmatter 里是为了避免模板属性里出现多层嵌套引号。
+//   order      —— 显示顺序数组，第 0 位 = 最前面那张卡；初值 [0, 1, 2]
+//   bring(i)   —— 点击某张卡时把它挪到数组首位，其余卡片保持相对顺序
+//   depth(i)   —— 这张卡当前在第几层（0 = 最前）
+//   deckStyle  —— 根据层级算出 z-index 和位移：越靠后越往右下偏移、并略微缩小，形成「扇形叠放」
+const deckState = `{
+  order: [${scenes.map((_, i) => i).join(", ")}],
+  bring(i) { this.order = [i, ...this.order.filter((n) => n !== i)]; },
+  depth(i) { return this.order.indexOf(i); },
+  deckStyle(i) {
+    const d = this.depth(i);
+    return 'z-index:' + (30 - d * 10) +
+      ';transform: translateX(calc(var(--deck-x) * ' + d + '))' +
+      ' translateY(calc(var(--deck-y) * ' + d + '))' +
+      ' scale(calc(1 - var(--deck-scale-step) * ' + d + '))';
+  }
+}`;
+---
+
+<!-- 外层负责给后面几张探出去的卡留出空间：右下内边距必须 >= 最深那层的探出量。
+     mx-auto 让变小后的卡片在右侧栏里居中，既不贴住文案，也不在右边留出大块空白。 -->
+<div class="scene-deck relative mx-auto w-full pr-12 pb-8 lg:pr-24 lg:pb-12">
+	<div class="grid" x-data={deckState}>
+		{
+			scenes.map((scene, i) => (
+				<!-- 三张卡放在同一个 grid 单元格里 => 容器高度取最高的一张，其余靠 transform 叠上去 -->
+				<article
+					class="col-start-1 row-start-1 flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-gray-100 transition-all duration-500 ease-out hover:shadow-xl"
+					role="button"
+					tabindex="0"
+					x-bind:style={`deckStyle(${i})`}
+					x-on:click={`bring(${i})`}
+					x-on:keydown.enter.prevent={`bring(${i})`}
+					x-on:keydown.space.prevent={`bring(${i})`}
+				>
+					<Image
+						src={scene.image}
+						alt={scene.alt || scene.title || ""}
+						width={900}
+						class:list={"w-full aspect-[4/3] object-cover"}
+					/>
+
+					<div class="flex flex-1 flex-col p-6 lg:p-7">
+						<span class="text-xs font-bold tracking-[0.15em] text-brand-fuchsia">{scene.number}</span>
+						<h3 class="h5 mt-2">{scene.title}</h3>
+						<p class="mt-2 text-gray-600">{scene.text}</p>
+					</div>
+				</article>
+			))
+		}
+	</div>
+</div>
+
+<style>
+	/* 叠放参数：--deck-x / --deck-y 是每深一层往右下挪的距离，--deck-scale-step 是每深一层缩小的比例。
+	   注意卡片以自身中心为原点缩放，缩放会从左右各吃掉一半的宽度，所以肉眼看到的错开量
+	   ≈ --deck-x - --deck-scale-step * 卡片宽度 / 2。之前 --deck-x 偏小、缩放偏大，
+	   位移几乎被抵消光，后面几张只露出几像素细边，才导致点不到。这里加大位移、减弱缩放。 */
+	.scene-deck {
+		/* 卡片整体尺寸：手机 / 平板上不让它占满整屏，避免叠卡比左侧文案还抢眼 */
+		max-width: 30rem;
+		--deck-x: 1rem;
+		--deck-y: 0.6rem;
+		--deck-scale-step: 0.02;
+	}
+
+	@media (min-width: 1024px) {
+		.scene-deck {
+			/* 宽屏卡片放宽到 38rem；两层探出量 2*(3rem - 0.03*卡宽/2) ≈ 80px，正好落在 pr-24(96px) 内 */
+			max-width: 38rem;
+			--deck-x: 3rem;
+			--deck-y: 1.625rem;
+			--deck-scale-step: 0.03;
+		}
+	}
+</style>

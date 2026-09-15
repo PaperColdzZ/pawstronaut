@@ -4,7 +4,9 @@ import Section from "~/components/Section.astro";
 import Container from "~/components/Container.astro";
 import Article from "~/components/Article.astro";
 import HeadingBlog from "~/components/HeadingBlog.astro";
+import Breadcrumbs from "~/components/Breadcrumbs.astro";
 import { getCollection, render } from "astro:content";
+import { formatDate, getTopics } from "~/utils/blog";
 import { clampDescription } from "~/utils/seo";
 
 export async function getStaticPaths() {
@@ -19,25 +21,61 @@ const { post } = Astro.props;
 const { Content } = await render(post);
 
 const description = clampDescription(
-	post.data.excerpt ?? `An article from our pet care blog: ${post.data.title}.`,
+	post.data.excerpt ?? "An article from our pet care blog: " + post.data.title + ".",
 );
+
+const topics = await getTopics();
+const topic = post.data.category
+	? topics.find((entry) => entry.id === post.data.category)
+	: undefined;
+
+const breadcrumbs = [
+	{ name: "Home", url: "/" },
+	{ name: "Blog", url: "/blog" },
+	...(topic ? [{ name: topic.name, url: "/topics/" + topic.id }] : []),
+	{ name: post.data.title, url: "" },
+];
 ---
 
-<Layout
-	title={post.data.title}
-	description={description}
-	type="article"
->
+<Layout title={post.data.title} description={description} type="article">
 	<Section>
 		<Container>
 			<Article contain>
+				<Breadcrumbs items={breadcrumbs} />
 				<HeadingBlog
 					title={post.data.title}
 					image={post.data.image}
 					imageAlt={post.data.imageAlt}
 					excerpt={post.data.excerpt}
 					id={post.id}
-				/>
+				>
+					<span slot="meta" class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-base text-gray-500">
+						{topic && (
+							<a
+								href={"/topics/" + topic.id}
+								class="font-semibold text-teal-500 transition hover:text-brand-fuchsia"
+							>
+								{topic.name}
+							</a>
+						)}
+						{topic && <span aria-hidden="true">/</span>}
+						<span>
+							Published <time datetime={post.data.publishDate.toISOString()}>
+								{formatDate(post.data.publishDate)}
+							</time>
+						</span>
+						{post.data.updatedDate && (
+							<>
+								<span aria-hidden="true">/</span>
+								<span>
+									Updated <time datetime={post.data.updatedDate.toISOString()}>
+										{formatDate(post.data.updatedDate)}
+									</time>
+								</span>
+							</>
+						)}
+					</span>
+				</HeadingBlog>
 				<Content />
 			</Article>
 		</Container>

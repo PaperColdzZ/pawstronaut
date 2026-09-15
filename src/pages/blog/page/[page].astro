@@ -1,0 +1,37 @@
+---
+import Layout from "~/layouts/Layout.astro";
+import BlogArchive from "~/components/BlogArchive.astro";
+import { getSortedPosts, getPublishedTopics, paginate, totalPagesFor } from "~/utils/blog";
+
+export async function getStaticPaths() {
+	const posts = await getSortedPosts();
+	const totalPages = totalPagesFor(posts);
+
+	// Page 1 lives in /blog/index.astro, so this route only generates page 2 and up.
+	return Array.from({ length: Math.max(0, totalPages - 1) }, (_, index) => {
+		const page = index + 2;
+		return {
+			params: { page: String(page) },
+			props: { page, posts: paginate(posts, page), totalPages },
+		};
+	});
+}
+
+const { page, posts, totalPages } = Astro.props;
+const topics = await getPublishedTopics();
+---
+
+<Layout
+	title={"Pet Care Articles - Page " + page}
+	description={"Page " + page + " of our pet care articles on behavior, nutrition, and wellbeing."}
+>
+	<BlogArchive
+		title="Blog"
+		description="Welcome to our blog! Here you will find the latest news and updates from our pet shelter. We are passionate about helping pets find loving forever homes, and we are excited to share our stories with you. Thank you for supporting our shelter!"
+		posts={posts}
+		page={page}
+		totalPages={totalPages}
+		basePath="/blog"
+		topics={topics}
+	/>
+</Layout>

@@ -1,18 +1,108 @@
 ---
+/**
+ * Footer —— 全站页脚
+ *
+ * 结构参考：D:\WorkSpace\meepal-site-Templte\purrfectly-zen-astro 的 HomePage.tsx:498-650（导出的 Footer 组件）。
+ * 原实现是 React + framer-motion；这里按本项目做法改写为纯 Astro —— 去掉滚动入场动画，不引入任何依赖。
+ *
+ * 按用户 2026-09-15 的要求做了两处删改：
+ *  1. **删掉右侧「Join Our Community」订阅 / CTA 区块**（用户明确要求去掉）；
+ *  2. 原稿的 Learn / Community / Legal 三组是竖着堆成一列的，这里改成**三列横排**（用户要求「横着的」）。
+ *
+ * 相比旧页脚**没有丢功能**：社交图标保留（原稿那个位置写的是 "Built with ♥ for cat lovers"，本站本来就有社交链接，
+ * 放这里比装饰文案实用）；Privacy Policy 链接移进了 Legal 分组。
+ *
+ * 图标几何数据取自 lucide v0.562.0（ISC 许可）—— 只搬运几何路径，**不新增图标库依赖**（见 AGENTS.md 第 3 节）。
+ */
 import { siteName } from "~/data/config";
+import LogoContainer from "./LogoContainer.astro";
 import SocialMediaIcons from "./SocialMediaIcons.astro";
+
 const currentYear = new Date().getFullYear();
+
+// 页脚导航分组。链接全部指向真实存在的路由 —— 别往这里加还没有页面的地址（会 404）。
+const navGroups = [
+	{
+		title: "Explore",
+		// lucide: book-open
+		svg: '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+		links: [
+			{ name: "Home", url: "/" },
+			{ name: "Adopt", url: "/cats" },
+			{ name: "Blog", url: "/blog" },
+		],
+	},
+	{
+		title: "Company",
+		// lucide: users
+		svg: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',
+		links: [
+			{ name: "About Us", url: "/about-us" },
+			{ name: "Contact", url: "/contact" },
+		],
+	},
+	{
+		title: "Legal",
+		// lucide: lock
+		svg: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+		links: [{ name: "Privacy Policy", url: "/privacy-policy" }],
+	},
+];
 ---
 
-<footer class="bg-gradient-to-r from-fuchsia-500 to-teal-500 text-white">
-	<div class="py-12 md:flex md:items-center md:justify-between container">
-		<div class="flex justify-center gap-x-6 md:order-2 [&_svg]:text-white">
-			<SocialMediaIcons />
+<footer class="border-t border-gray-200 bg-gradient-to-br from-teal-50 via-white to-fuchsia-50">
+	<div class="container py-14 lg:py-16">
+		<!-- 上半区：左侧品牌 + slogan（复用 LogoContainer，与页头同源）；右侧三组导航横向排开 -->
+		<div class="grid grid-cols-1 items-start gap-12 lg:grid-cols-[1.1fr_2fr] lg:gap-16">
+			<LogoContainer />
+
+			<!-- 手机 2 列 -> sm 起 3 列，三组并排 -->
+			<div class="grid grid-cols-2 gap-8 sm:grid-cols-3">
+				{
+					navGroups.map((group) => (
+						<div>
+							<div class="flex items-center gap-2 text-brand-teal">
+								<svg
+									class="size-5 shrink-0"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.75"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"
+									set:html={group.svg}
+								/>
+								<span class="font-caveat text-xl">{group.title}</span>
+							</div>
+
+							<ul class="mt-4 space-y-2">
+								{group.links.map((link) => (
+									<li>
+										<a
+											href={link.url}
+											class="text-sm text-gray-600 transition-colors duration-300 hover:text-brand-fuchsia"
+										>
+											{link.name}
+										</a>
+									</li>
+								))}
+							</ul>
+						</div>
+					))
+				}
+			</div>
 		</div>
-		<p class="mt-10 max-md:text-center text-base">
-			&copy; {currentYear}
-			{siteName}. All rights reserved.<br />
-			<a class="underline" href="/privacy-policy">Privacy policy</a>
-		</p>
+
+		<!-- 分隔线 -->
+		<div class="my-10 border-t border-gray-200"></div>
+
+		<!-- 下半区：版权 + 社交图标 -->
+		<div class="flex flex-col items-center justify-between gap-6 md:flex-row">
+			<p class="text-xs text-gray-500">&copy; {currentYear} {siteName}. All rights reserved.</p>
+			<div class="flex items-center gap-2 text-gray-500">
+				<SocialMediaIcons />
+			</div>
+		</div>
 	</div>
 </footer>

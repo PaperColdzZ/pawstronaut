@@ -1,0 +1,44 @@
+---
+import Section from "~/components/Section.astro";
+import Container from "~/components/Container.astro";
+import Heading from "~/components/Heading.astro";
+import CardBlogPost from "~/components/CardBlogPost.astro";
+import TopicNav from "~/components/TopicNav.astro";
+import Pagination from "~/components/Pagination.astro";
+
+const {
+	title,
+	description,
+	posts = [],
+	page = 1,
+	totalPages = 1,
+	basePath = "/blog",
+	topics = [],
+	activeTopic = "",
+} = Astro.props;
+---
+
+<Section>
+	<Container>
+		<Heading>
+			<h1 slot="heading-title" class="h2 text-teal-500">{title}</h1>
+			<p slot="heading-content">{description}</p>
+		</Heading>
+
+		<TopicNav topics={topics} active={activeTopic} />
+
+		{
+			posts.length > 0 ? (
+				<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-16 xl:gap-24">
+					{posts.map((post: any) => (
+						<CardBlogPost post={post} />
+					))}
+				</div>
+			) : (
+				<p class="prose">No articles here yet. Please check back soon.</p>
+			)
+		}
+
+		<Pagination current={page} total={totalPages} basePath={basePath} />
+	</Container>
+</Section>

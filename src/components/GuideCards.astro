@@ -1,0 +1,73 @@
+---
+/**
+ * GuideCards —— 「起步指南」纯色卡片组（首页 guides 区块用）
+ *
+ * 结构参考：D:\WorkSpace\meepal-site\meepal-home-v3.html 的 <section class="guides" id="guides">
+ * （该文件里 CSS 在 276~345 行与 757~771 行，标记在 885~916 行）。
+ *
+ * 相对原稿做的三处调整：
+ *  1. 原稿把配图 absolute 定位、卡片靠 padding-top 给图片留位置，图片高度写死 170px；
+ *     这里改成正常文档流 + 固定宽高比（3:2）+ object-cover，响应式下不用手算留白。
+ *  2. 原稿用 Playfair Display 衬线标题；这里换成项目全局的 Caveat Brush
+ *     （见 global.css 里 h1~h6 的 @apply font-caveat），和页面上其它标题保持一致。
+ *  3. 原稿按钮是深绿描边；这里换成项目品牌色 teal-900，配色逻辑不变（浅底 + 深色描边，hover 反转）。
+ */
+import { Image } from "astro:assets";
+
+export interface Guide {
+	/** 卡片配图（astro:assets 导入的图片资源） */
+	image: ImageMetadata;
+	/** 配图的替代文本 */
+	alt?: string;
+	/** 卡片底色：yellow / mint，对应参考稿里的 --yellow(#f8d264) 与 --mint(#b7dbca) */
+	tone?: "yellow" | "mint";
+	/** 卡片标题 */
+	title?: string;
+	/** 卡片描述 */
+	text?: string;
+	/** 「Open guide」按钮指向的链接 */
+	href?: string;
+}
+
+interface Props {
+	guides?: Guide[];
+}
+
+const { guides = [] } = Astro.props;
+
+// 卡片底色。必须写成完整类名字面量，Tailwind 才扫得到并生成 CSS（用字符串拼出来的类名不会生成）。
+const tones: Record<string, string> = {
+	yellow: "bg-[#f8d264]",
+	mint: "bg-[#b7dbca]",
+};
+---
+
+<!-- 两张卡片：手机 1 列，sm(640px) 起并排 2 列 -->
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+	{
+		guides.map((guide) => (
+			<article class:list={["flex flex-col rounded-2xl p-5 lg:p-6", tones[guide.tone ?? "yellow"]]}>
+				<!-- 配图固定 3:2 裁切：两张源图一张是方图(900x900)、一张是竖图(900x1443)，居中裁切都能取到主体 -->
+				<Image
+					src={guide.image}
+					alt={guide.alt || guide.title || ""}
+					width={900}
+					class:list={"w-full aspect-[3/2] rounded-xl object-cover"}
+				/>
+
+				<h3 class="h5 mt-6">{guide.title}</h3>
+				<p class="mt-2 text-gray-700">{guide.text}</p>
+
+				<!-- mt-auto：文案长短不一时，按钮仍然贴着卡片底部对齐 -->
+				<div class="mt-auto pt-6">
+					<a
+						href={guide.href || "#"}
+						class="inline-flex w-fit items-center gap-2 rounded-full border-2 border-teal-900/70 bg-white/50 px-4 py-2 text-sm font-bold text-teal-900 transition-colors duration-300 hover:bg-teal-900 hover:text-white"
+					>
+						Open guide <span aria-hidden="true">→</span>
+					</a>
+				</div>
+			</article>
+		))
+	}
+</div>

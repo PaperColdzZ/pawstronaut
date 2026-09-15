@@ -1,0 +1,41 @@
+---
+/**
+ * HealthCard —— 首页「Dog health」区块右侧的浅绿卡片
+ *
+ * 结构参考：D:\WorkSpace\meepal-site\meepal-home-v3.html 的 <section class="dog-health" id="journal">
+ * （该文件里 CSS 在 402~441 行与 703~708 行，标记在 957~976 行）。
+ *
+ * 相对原稿做的两处调整：
+ *  1. 原稿的配图是 width:65% / height:190px 的固定尺寸，hover 时图片放大 1.04 倍 —— 但卡片没有
+ *     overflow:hidden，放大后会盖住卡片内边距。这里改成「外层定宽比容器 + overflow-hidden」，
+ *     图片在内层放大、超出部分被圆角裁掉。
+ *  2. 标题沿用项目全局的 Caveat Brush（h5），与全站标题一致；卡片底色保留参考稿的 #d8ecad。
+ */
+import { Image } from "astro:assets";
+
+interface Props {
+	/** 卡片配图（astro:assets 导入的图片资源） */
+	image: ImageMetadata;
+	/** 配图的替代文本 */
+	alt?: string;
+	/** 卡片底部的说明标题 */
+	title?: string;
+}
+
+const { image, alt = "", title = "" } = Astro.props;
+---
+
+<!-- group：整张卡片被 hover 时图片才放大（对应原稿的 .health-card:hover img） -->
+<article class="group flex flex-col rounded-3xl bg-[#d8ecad] p-6 lg:p-8">
+	<!-- 外层负责裁切：图片在内层放大，超出圆角的部分被隐藏 -->
+	<div class="mx-auto w-2/3 overflow-hidden rounded-2xl">
+		<Image
+			src={image}
+			alt={alt || title}
+			width={900}
+			class:list={"w-full aspect-[3/2] object-cover transition-transform duration-500 ease-out group-hover:scale-105"}
+		/>
+	</div>
+
+	<h3 class="h5 mt-6 lg:mt-8">{title}</h3>
+</article>

@@ -1,0 +1,26 @@
+---
+const { items = [] } = Astro.props;
+---
+
+<nav aria-label="Breadcrumb" class="not-prose mb-8">
+	<ol class="flex flex-wrap items-center gap-x-2 gap-y-1 text-base">
+		{
+			items.map((item: { name: string; url?: string }, index: number) => (
+				<li class="flex items-center gap-x-2">
+					{index > 0 && (
+						<span aria-hidden="true" class="text-gray-500/60">
+							/
+						</span>
+					)}
+					{item.url ? (
+						<a href={item.url} class="text-gray-500 transition hover:text-brand-fuchsia">
+							{item.name}
+						</a>
+					) : (
+						<span class="text-gray-700">{item.name}</span>
+					)}
+				</li>
+			))
+		}
+	</ol>
+</nav>
