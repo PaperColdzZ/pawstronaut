@@ -1,12 +1,32 @@
 ---
+/**
+ * blog 文章详情页（2026-09-18 重排）
+ *
+ * 三段式，对应参考稿 D:\WorkSpace\Group 2.png：
+ *   1. PostHero      —— 全宽渐变 hero 带：标题 / 日期作者 / FOLLOW ON GOOGLE 徽章占位 + 大配图
+ *   2. 两列正文      —— 左栏 TableOfContents（sticky）+ 分享按钮，右栏面包屑 / Key Takeaway / 正文 / ALL BLOGS
+ *   3. FeaturedArticles —— 暖灰标题带 + 3 张文章卡（复用 CardBlogPost）
+ *
+ * 旧的实现**没有删**，整文件搬到了 src/pages/_legacy/blog/[...slug].astro。
+ * Astro 不路由下划线开头的目录，所以那个文件是纯留档，不会和本页抢路由。
+ *
+ * URL 没变：仍然由 frontmatter 的 slug 决定（见下面 getStaticPaths），
+ * 所以 canonical、sitemap、站内已有链接全都不用动。
+ *
+ * 注意：模板最外层那个 <div> 只是给 .post-headings 提供作用域，
+ * 但它会让 global.css 里 'main > section:first-child' 的头部避让规则匹配不到，
+ * 因此 PostHero 自己写了 pt-[var(--header-height)]，改这里时要留意。
+ */
 import Layout from "~/layouts/Layout.astro";
 import Section from "~/components/Section.astro";
 import Container from "~/components/Container.astro";
 import Article from "~/components/Article.astro";
-import HeadingBlog from "~/components/HeadingBlog.astro";
 import Breadcrumbs from "~/components/Breadcrumbs.astro";
+import PostHero from "~/components/PostHero.astro";
+import TableOfContents from "~/components/TableOfContents.astro";
+import FeaturedArticles from "~/components/FeaturedArticles.astro";
 import { getCollection, render } from "astro:content";
-import { formatDate, getTopics } from "~/utils/blog";
+import { getSortedPosts, getTopics } from "~/utils/blog";
 import { clampDescription } from "~/utils/seo";
 
 export async function getStaticPaths() {
@@ -18,7 +38,7 @@ export async function getStaticPaths() {
 }
 
 const { post } = Astro.props;
-const { Content } = await render(post);
+const { Content, headings } = await render(post);
 
 const description = clampDescription(
 	post.data.excerpt ?? "An article from our pet care blog: " + post.data.title + ".",
@@ -35,49 +55,63 @@ const breadcrumbs = [
 	...(topic ? [{ name: topic.name, url: "/topics/" + topic.id }] : []),
 	{ name: post.data.title, url: "" },
 ];
+
+// 底部「Featured Articles」的推荐位：同分类的排前面，再补其它文章，最多 3 篇。
+// 刻意排除当前这一篇 —— 读者正在看它，推荐回自己没意义。
+const others = (await getSortedPosts()).filter((entry) => entry.id !== post.id);
+const sameTopic = topic ? others.filter((entry) => entry.data.category === topic.id) : [];
+const featured = [...sameTopic, ...others.filter((entry) => !sameTopic.includes(entry))].slice(0, 3);
+
+// 「Key Takeaway」优先用 frontmatter 里新增的可选 takeaway，没写就退回 excerpt
+const takeaway = post.data.takeaway ?? post.data.excerpt;
+
+// 分享按钮要的是绝对地址（相对路径在分享出去后打不开）
+const shareUrl = new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin).href;
 ---
 
 <Layout title={post.data.title} description={description} type="article">
-	<Section>
-		<Container>
-			<Article contain>
-				<Breadcrumbs items={breadcrumbs} />
-				<HeadingBlog
-					title={post.data.title}
-					image={post.data.image}
-					imageAlt={post.data.imageAlt}
-					excerpt={post.data.excerpt}
-					id={post.id}
-				>
-					<span slot="meta" class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-base text-gray-500">
-						{topic && (
+	<div>
+		<PostHero
+			title={post.data.title}
+			image={post.data.image}
+			imageAlt={post.data.imageAlt}
+			publishDate={post.data.publishDate}
+			updatedDate={post.data.updatedDate}
+			author={post.data.author}
+		/>
+
+		<Section>
+			<Container>
+				<div class="grid grid-cols-1 gap-y-12 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-x-16 xl:gap-x-24">
+					<!-- 小屏隐藏目录（否则长目录会把正文顶下去很远）；TableOfContents 内部自己判断要不要渲染 -->
+					<TableOfContents headings={headings} url={shareUrl} title={post.data.title} />
+
+					<div class="post-headings max-w-3xl">
+						<Article contain={false}>
+							<Breadcrumbs items={breadcrumbs} />
+
+							{takeaway && (
+								<p>
+									<strong class="text-[#192c58]">Key Takeaway</strong> {takeaway}
+								</p>
+							)}
+
+							<Content />
+						</Article>
+
+						<p class="not-prose mt-14">
 							<a
-								href={"/topics/" + topic.id}
-								class="font-semibold text-teal-500 transition hover:text-brand-fuchsia"
+								href="/blog/"
+								class="text-xs font-bold tracking-[0.14em] text-gray-700 uppercase transition hover:text-brand-fuchsia"
 							>
-								{topic.name}
+								&larr; All blogs
 							</a>
-						)}
-						{topic && <span aria-hidden="true">/</span>}
-						<span>
-							Published <time datetime={post.data.publishDate.toISOString()}>
-								{formatDate(post.data.publishDate)}
-							</time>
-						</span>
-						{post.data.updatedDate && (
-							<>
-								<span aria-hidden="true">/</span>
-								<span>
-									Updated <time datetime={post.data.updatedDate.toISOString()}>
-										{formatDate(post.data.updatedDate)}
-									</time>
-								</span>
-							</>
-						)}
-					</span>
-				</HeadingBlog>
-				<Content />
-			</Article>
-		</Container>
-	</Section>
+						</p>
+					</div>
+				</div>
+			</Container>
+		</Section>
+
+		<FeaturedArticles posts={featured} />
+	</div>
 </Layout>

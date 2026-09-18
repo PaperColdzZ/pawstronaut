@@ -228,6 +228,26 @@ DOM：
 问题：(a) 3.66 MB 的 PNG 照样进部署；(b) **没有 `sizes` / 响应式 `srcset`**，手机端也按 1586px 原图下载。
 `index.astro:135` 和 `:162` 还用同一张图做全屏背景的 `<Image>`，同样缺响应式宽度。
 
+### 7.4 部署（Cloudflare Pages，2026-09-15）
+
+- **现状**：用户在 Cloudflare Pages 上已有一个**测试页面**部署，目标是换成该 GitHub 仓库（`PaperColdzZ/pawstronaut`）的正式构建。测试项目是 **Direct Upload** 还是 **Git 连接**尚未确认 —— 两条路都建议**新建一个 Git 连接的项目**再迁移域名：Direct Upload 项目没有构建配置、无法改成 Git；Git 连接项目也**不能换来源仓库**。
+- **构建配置**（新建 Pages 项目时填）：Framework preset **Astro** / Build command `npm run build` / Build output directory `dist` / Root directory 留空 / Production branch `main` / 环境变量 `NODE_VERSION = 22.12.0`。
+- **Node 版本是硬约束**：`node_modules/astro/package.json` 的 `engines.node` = `^20.19.1 || >=22.12.0`；仓库内**没有** `.nvmrc` / `.node-version`，因此必须在 Pages 里显式设 `NODE_VERSION`。
+- **不需要 adapter**：`output: "static"`，Cloudflare 只负责构建 + 发布 `dist/`；等接表单后端时才需要评估 `@astrojs/cloudflare`。
+- **Cloudflare 不需要 `.nojekyll`**：`_astro/` 目录被忽略是 **GitHub Pages 的 Jekyll** 行为。Pages 直接发布产物，`/_astro/*.css|js` 正常 200 —— 换平台时别把这条坑误带到 Pages 上。
+- **资产路径全是根绝对路径**（`/_astro/...`、`/favicon.svg`，sitemap / robots 内是 `https://meepal.pet`）：所以站点必须挂在**域名根**上（`astro.config.mjs` 的 `site` + `base: "/"` 已固定）；改域名只改那一处。
+- **部署前基线**（2026-09-15 复测）：`npm run build` exit 0、**20 页 2.65s**、`dist/` 79 个文件 9.2 MB、`dist/index.html` 168254 字节（与 2.56s 那次一致，产物确定）。
+- **踩坑（2026-09-15，用户在构建日志里报出）**：走 **Worker / Workers Builds** 时，**部署命令**阶段 wrangler 自动执行 `astro add @astrojs/cloudflare`（日志原文：「Astro 将运行以下命令：npm i @astrojs/cloudflare@^14.3.1 wrangler@^4.131.2」），`npm i` exit 1 使其无法改写 `astro.config.js` → 「失败：运行部署命令时发生错误」。**本项目不需要这个适配器**：`output: "static"`，且 `src/` 内 grep `Astro.request` / `Astro.locals` / `prerender` **零命中**，无任何 SSR 特征。另外 `astro add` 改的是**构建容器里**的文件，改完也回不到仓库 —— 即便成功，构建也不可复现。
+- **两条可行路径**：(a) 走 **Pages** 流程（不跑 wrangler、不碰适配器，只需 Build command `npm run build` + output `dist`）；(b) 留在 Worker，则**在仓库里显式声明静态资产** —— 根级 `wrangler.jsonc`：`{"name":"meepal","compatibility_date":"2026-09-15","assets":{"directory":"./dist"}}`，构建 `npm run build`、部署 `npx wrangler deploy`。若 wrangler 仍坚持 `astro add`，说明该流程绕不过，回到 (a)。
+- **`npm i` 失败的真实原因未取到**（wrangler 摘要掉了 npm 的 stderr）。**推断**：peer 冲突 —— 它要装 `@astrojs/cloudflare@^14.3.1`，而本仓库是 `astro@^6.0.4`，适配器大版本需与 Astro 大版本对齐。要看 `npm i` 原始输出才能定性。
+- **将来若真要 SSR**（例如把 `contact.astro` 的表单做成 Cloudflare Function）：适配器必须**由我们在仓库里**加好（版本与 Astro 6 对齐）并提交，**不能让构建容器现场 `astro add`**。
+
+- **结果（2026-09-15）**：用户**用 Pages 部署成功**，Worker 路径放弃。剩下的是 **自定义域迁移**：旧项目 Custom domains → 移除该域名 → 新项目 Custom domains → Set up a custom domain → 填 `meepal.pet`。**顺序必须是「先移除、后添加」** —— 同一个域同时只能绑一个 Pages 项目，先加会报「domain is already in use」。
+- **域名迁移的 DNS 细节**：zone 与 Pages 项目在同一账号时，DNS 记录由 Cloudflare **自动维护**（加自定义域时会自动建/改记录，目标指向新项目的 `<project>.pages.dev`）；若当初是**手工**建的 CNAME，则要手动把目标改成新项目的 `*.pages.dev`。移除旧绑定时留意那条记录是否被一并删除。若旧项目不在同一账号，可能还要重做域名验证（加 TXT 记录）。
+- **迁移后的核对**：`https://meepal.pet/` 首页是**新版**（新构建独有 `/_astro/Container.*.css` 返回 200 即可区分旧测试页）、canonical 为 `https://meepal.pet/`、`/sitemap-index.xml` 19 条、`/robots.txt` 指向 meepal.pet。若仍看到旧页，先 Purge Cache 再判断。
+- **域名迁移不需要改代码**：`astro.config.mjs` 的 `site` 已是 `https://meepal.pet`，`base: "/"`，canonical / sitemap / robots 都从这一处推导。
+- **迁移窗口**：Cloudflare 不允许一个域同时绑两个项目，所以「移除 → 添加」之间存在短暂窗口（分钟级，可能暂时 404/522）。因此**务必先在 `*.pages.dev` 上验收通过再动域名**。
+
 ## 8. 已实测验证的问题清单（按优先级）
 
 ### P0 —— 不修不能上线
@@ -853,6 +873,155 @@ blog 的 URL 依然来自 frontmatter 的 `slug` —— 核心机制不变。
 - 页脚仍显示模板自带的猫爪 logo（`logo-pawstronaut.svg`）—— favicon / logo 是否换成本站品牌视觉，见第 12 节待确认第 6 条。
 - **社交图标仍指向模板的通用地址**（`facebook.com` / `x.com` / `instagram.com` / `youtube.com`，来自 `src/components/SocialMediaIcons.astro`），**上线前要换成本站真实账号**。页脚 hrefs 实测 = `/` `/cats` `/blog` `/about-us` `/contact` `/privacy-policy` + 4 个社交链接，**全部指向存在的路由，没有 404**。
 
+### 8.15 「Mac 端排版异常」排查（2026-09-15，**未改任何代码**）
+
+**现象**：用户在自己的 Mac 上看站点时截图反馈「排版有问题」：首页 4 advantages 区块的卡片是**一列**、每张占满容器宽度，图片区是一大块浅绿（`teal-50`）配一张很小的插画。
+
+#### 截图取证（可复现）
+
+图片是 2× Retina 截图经微信缩到 0.9（2560×1362），即 **1 CSS px ≈ 1.8 图像 px**。四把互相独立的「尺子」交叉标定出同一比例：
+
+| 尺子 | CSS 期望 | 图上实测 | 比例 |
+|---|---|---|---|
+| 卡片图片区 `h-48` | 192px | 345px | 1.797 |
+| 插画 `h-32` | 128px | 230px | 1.797 |
+| 卡片文字区（`p-8`×2 + `h5` + `mb-3`） | ≈137px | 246px | 1.796 |
+
+由此读出：**视口 ≈ 785 CSS px**；卡片宽 **≈705px = 48rem − 4rem**，正好是 `md` 档 `.container{max-width:48rem}` 的内宽；页面里有汉堡 ⇒ 视口 < `lg`(1024) ✓；`h2` 是 `text-5xl`（48px）⇒ 确实 < `lg` ✓。
+
+#### 关键矛盾 → 结论
+
+**≥640px 时 CSS 要求 `sm:grid-cols-2`（≥1024 时 `lg:grid-cols-4`），截图却是 1 列。** 而：
+
+1. 卡片的圆角（`rounded-2xl`）与阴影（`shadow-lg`）**只存在于外链样式表** `dist/_astro/Container.C7d7wS6W.css` 里，`dist/index.html` 的内联关键 CSS **没有**它们 —— 截图里卡片明显有圆角和阴影 ⇒ **外链样式表确实生效了**。
+2. 内联关键 CSS 里**有** `.grid-cols-1`、`.gap-8`、`.max-w-3xl` 和 5 条 `.container{max-width:*}`，但**没有** `sm:grid-cols-2` / `lg:grid-cols-4`，也没有卡片自己的 `.h-32`/`.h-48`/`.p-8`/`.rounded-2xl`/`.shadow-lg`（内联插件只抓「首屏元素」的规则，卡片在折叠线以下）。
+
+⇒ 唯一自洽解释：**该页面把内联关键 CSS 放到了外链样式表之后**。同权重、后到者胜：内联的 `.grid-cols-1`（基础规则）压过样式表里 `@media(min-width:40rem){.sm\:grid-cols-2}` ⇒ **全站响应式静默失效**（导航、栅格、字号全停在移动端，而颜色/圆角/阴影这类不冲突的属性照常生效）。截图就是这个组合的产物。
+
+#### 本仓库本地构建的顺序是对的
+
+- `dist/index.html`：`@playform/inline` 注入的内联 `<style>` 在**字节 1912**，样式表 `<link rel="stylesheet" href="/_astro/Container.C7d7wS6W.css">` 在 **37295 / 37406** ⇒ 内联在前、样式表在后，响应式规则赢 ✓。
+- ⇒ **差异不在源码，而在另一次构建的产物**（Cloudflare Pages 构建环境，或 Mac 上的副本/旧部署）。
+
+#### 差异来源（按可能性排序）
+
+1. **构建环境解析出的依赖版本不同**：`package.json` 全是 `^` 范围（`astro ^6.0.4`、`@playform/inline ^0.1.2`、`tailwindcss ^4.2.1`）。Windows 实装 astro 6.0.4 / @playform/inline 0.1.2 / tailwindcss 4.2.1，`package-lock.json` 存在（236 KB）。**Pages 的构建容器若用 `npm install`（或别的包管理器、忽略 lockfile）顶到更高版本，插件注入位置就可能变化 ⇒ 顺序翻转。** 这是最可能的一条，因为它能解释「同一份源码、两台机器结果不同」。
+2. **看的是旧构建**（旧测试项目的部署，或 Mac 上的旧 `dist/` 副本）。注意：**自定义域迁移是 09-15 的待办**，`meepal.pet` 很可能还指着旧测试项目。
+3. 这本身是插件设计上的固有隐患：关键 CSS 必须保持「内联在前」，任何版本漂移都可能让整站响应式失效。它同时是第 4 步里记的「CSS 重复投递」的根源（内联 34.5 KB + 外链 67 KB）。
+
+#### 确认清单（3 步，2 分钟，在出问题的那台/那个地址上做）
+
+1. **拉伸窗口**：从窄拉到 ~1000px，看 4 张 advantage 卡是否变 2 列；始终 1 列即命中本节结论。
+2. **看顺序**：DevTools → Elements，看那一大段内联 `<style>` 是在 `<link rel="stylesheet" .../_astro/Container.*.css>` **之前**还是**之后**。在之后就命中。
+3. **对版本**：两台机器各跑 `npm ls astro @playform/inline tailwindcss`；并优先用 `npm ci`（按 lockfile 装）而不是 `npm install`。Pages 项目里也应确认构建命令是 `npm ci && npm run build`。
+
+#### 建议的修复
+
+1. 立刻可做：在出问题的那一侧 `npm ci` → 重新构建/重新部署 → 硬刷新（Cmd+Shift+R）。
+2. 对齐依赖版本：把 `^` 收成精确版本，或统一用 `npm ci`；Pages 的 Build command 建议写成 `npm ci && npm run build`。
+3. 结构性方案：**评估去掉 `@playform/inline`**（收益只是省一次请求，却带来顺序风险 + CSS 重复投递）；若保留，加一道构建后校验：断言内联 `<style>` 出现在样式表 `<link>` 之前。
+
+#### 顺带记录的真实设计弱点（与级联问题无关，建议改）
+
+窄宽度（1 列）下 `CardBenefit` 的固定 `h-48` 图片区 + 固定 `h-32` 插画，被拉成 ~700px 宽的卡片后显得很空 —— 截图里那块巨大的浅绿空白就是它。这张卡是按「约 230px 宽的格子」设计的。修法：图片区随宽度伸缩（如 `aspect-[3/2]`），或 1 列时给卡片加 `max-w-sm mx-auto`。**未实施，等用户决定。**
+
+> 取证工具备注：截图用 `sharp` 读像素 + `view_image` 裁切目视；构建产物用正则解析 `dist/index.html` 的 `<style>`/`<link>` 字节位置。**本轮未联网**（抓 `https://meepal.pet/` 的请求被用户拒绝），所以「线上是旧构建」这条尚未直接验证。
+
+### 8.16 blog 文章页改版（2026-09-18 需求 + 参考稿取证；**实现记录见 8.17**）
+
+**用户要点**：改造 blog 下每一篇文章内容页；**为了保证稳定性，新增一个我需要的内容页面，隐藏但不删除原始内容页面**；样式参考 `D:\WorkSpace\Group 2.png`（与 `Group 2.svg` 同图）；**分享与图标类占位可以先不做或由我生成占位**；有疑问先沟通确认。
+
+#### 参考稿取证（像素级，不靠印象）
+
+- **规格**：PNG 2936×6598；SVG 6.8 MB 且**无 `<text>`**（文字转路径）、内嵌 9 张 base64 图 ⇒ 取不到字号/字体，只能靠像素与形状。
+- **色带（左边缘 x=6 竖向扫描）**：
+
+| 区段（y） | 底色 | 对应区块 |
+|---|---|---|
+| 0–1011 | `#effcf9`（≈ `teal-50`） | 文章 hero 带（渐变左端） |
+| 1012–4375 | `#ffffff` | 正文区（左 TOC 面板 + 右文章） |
+| 4376–4852 | **`#efede5`**（暖灰白，不是绿） | 「Featured Articles」标题带 |
+| 4854–5925 | `#ffffff` | 猫卡所在白底区 |
+| 5926–6351 | `#f1fdfb` | 页脚带（= 现有页脚渐变） |
+
+- **hero 渐变方向与色**：y=180 横向采样 `#f1fefb`(x=0) → `#fbfefd` → `#ffffff`(x≈1468) → `#fefaff` → `#fef8ff`(x=2569) ⇒ **左 mint → 中白 → 右粉的水平渐变**，与现有页脚的 `from-teal-50 via-white to-fuchsia-50` 同一套色板（直接复用，**不引入新色**）。
+- **侧栏面板底色 `#fafafa`**（y=1500：x=153…691 为 `#fafafa`，其内 `#f4f4f4` 是分享图标盒），右列从 x≈692 起为白。面板约 540/2936 ≈ 18% 页宽 ⇒ 两列布局里侧栏约 1/4~1/3。
+- **SVG fill 频次**（校对用）：`#e6e6e6`×9、`#cccccc`×7、`#666666`×5、`#1877f2`×2（Facebook 分享图标）、`#f3f3f1`/`#efede5`/`#fafafa`（面板与带底）、`#192c58`（深藏蓝，疑为标题色）、`#f0fdfa`/`#fdf4ff`（hero 环与渐变）、`#4d4d4d`、`#d5d5d5`。
+
+#### 参考稿结构（模块拆分）
+
+1. **hero 带**（全宽渐变，位于固定 header 之下）：左 = 大标题（粗无衬线深色）+ `Updated Jan 27, 2026 by 作者名字` + `FOLLOW ON GOOGLE` 徽章（含 Google G）；右 = 大圆角配图（≈40px）外套一圈浅薄荷 `#f0fdfa`。
+2. **两列正文**：左列（sticky）= `#fafafa` 圆角面板 → TOC 列表（**当前小节高亮：蓝字 + 左侧蓝竖条**，其余灰字）→ 面板底部 `Table of Contents` 标签 + 分享图标行（Facebook / X / Pinterest / t / 邮件 / WhatsApp）；右列 = 面包屑（`Home / Blogs / <分类> / <文章>`）→ `Key Takeaway` 加粗引导段 → h2/h3 + 正文（内联加粗链接 + 一张图）→ `← ALL BLOGS`。
+3. **Featured Articles 带**：`#efede5` 全宽，左「Featured Articles」+ 右 `VIEW ALL`（小号大写 + 下划线）；下方 3 张白底猫卡（图 + 名字 + 简介 + **`Adopt Me` 渐变按钮**）——**与现有 `CardCat.astro` 完全同构**；参考稿右侧有滚动条暗示横向滚动。
+4. **页脚**：与现有页脚一致，**不需要重做**。
+
+#### 可复用的现有资产（不新增依赖）
+
+| 需要 | 现成实现 |
+|---|---|
+| 猫卡（含 Adopt Me 渐变按钮） | `CardCat.astro` + `ShowCats.astro`（3 列网格） |
+| 面包屑 | `Breadcrumbs.astro` |
+| 正文排版 | `Article.astro`（`prose`）+ `global.css` 的 `@utility prose` |
+| 分类 | `src/utils/blog.ts` 的 `getTopics()` |
+| 社交图标 | `SocialMediaIcons.astro`（内联 SVG，**项目无图标库，别新增**） |
+| header 避让 | `global.css` 的 `main > section:first-child { padding-top: var(--header-height) }` ⇒ hero 带可全宽顶到 y=0 |
+| TOC 数据 | `render(post)` 返回的 `headings`（Astro 内置） |
+
+#### 建议的落地文件（全部新增，不动现有页面）
+
+- `src/components/PostHero.astro` — hero 带（渐变 + 标题 + 日期/作者 + 大图 + 徽章占位）。
+- `src/components/TableOfContents.astro` — 侧栏面板（headings 列表 + 高亮 + 分享占位）。
+- `src/components/FeaturedArticles.astro` — `#efede5` 带 + 复用 `ShowCats` + `VIEW ALL`。
+- `src/components/ShareIcons.astro` — 分享占位（内联 SVG，链接先空）。
+- **路由（待定）**：新模板落到 `/blog/<slug>/`；旧实现隐藏但保留 —— 或 `src/pages/_legacy/blog/`（下划线目录不路由，代码逐字保留），或建成 `noindex` 的 `/blog-legacy/<slug>/` 并从 sitemap filter 排除。
+- 可能给 `blog` schema 增加**可选** `takeaway` 字段（缺省回退 `excerpt`，老文章照常构建）。
+
+#### 待用户拍板的 5 个问题（已发出）
+
+1. **URL 策略**：A 新模板接管 `/blog/<slug>/`（链接/canonical 不变，风险最低，推荐）／B 先挂 `/preview/blog/<slug>/` + `noindex`，验收后切。
+2. **旧页隐藏形态**：A 移进 `src/pages/_legacy/`（不路由、不可访问，最干净）／B 建成 `noindex` 的 `/blog-legacy/<slug>/`（可打开对比，但多 3 页且要排除 sitemap）。
+3. **标题字体**：参考稿是粗无衬线（Inter 风）；本站现行标题是 Caveat Brush。A 文章页内改用系统无衬线（`font-sans` 覆盖，不加依赖，推荐）／B 保持 Caveat。
+4. **侧栏 TOC**：A 可点 + 滚动高亮（用已有 Alpine，约 30 行 JS，推荐）／B 只做锚点列表。
+5. **Featured Articles**：A 复用 `ShowCats` 的 3 列网格（推荐）／B 横向滚动（贴参考稿观感；**别引 swiper**，那是模板遗留死样式）。
+
+另：`FOLLOW ON GOOGLE` 徽章与分享图标按用户许可**先做静态占位**（无外链）；`Updated … by …` 在缺 `updatedDate`/`author` 时优雅降级为只显示 `Published`。
+
+### 8.17 blog 文章页改版实施记录（2026-09-18 已完成并实测）
+
+**用户 09-18 拍板的三条**（对应 8.16 末尾那份确认清单）：
+
+1. 底部区块放 **3 篇文章卡**（不是参考稿画的猫卡）—— 用户原话「你的想法是对的」。
+2. **文章页标题不再用手写体**，按参考稿改成无衬线粗体。
+3. **旧版页面不需要还能打开**，静默留档即可。
+
+**改动清单**（新增为主，没有删任何现有页面）：
+
+| 文件 | 动作 | 说明 |
+|---|---|---|
+| `src/components/PostHero.astro` | 新增 | 全宽渐变 hero：标题 / `Updated … by …` / FOLLOW ON GOOGLE 占位 / 大配图 + 薄荷衬边 |
+| `src/components/TableOfContents.astro` | 新增 | 左栏 sticky 目录面板（取 `render(post).headings` 的 h2+h3）+ 滚动高亮脚本 |
+| `src/components/ShareIcons.astro` | 新增 | 分享按钮：Facebook / X / 邮件三个**真实链接**（纯 href，无 JS、无新依赖） |
+| `src/components/FeaturedArticles.astro` | 新增 | `#efede5` 标题带 + `VIEW ALL` + 卡片网格（复用 `CardBlogPost`） |
+| `src/pages/blog/[...slug].astro` | **改写** | 新版三段式页面；`getStaticPaths` 与 URL 规则**没动**（仍取 `post.id`） |
+| `src/pages/_legacy/blog/[...slug].astro` | 旧页搬入 | 旧文件**逐字未改**（用 `-ceq` 比对确认过），Astro 不路由 `_` 开头的目录 |
+| `src/styles/global.css` | +约 30 行 | `.post-headings`（无衬线 + `#192c58` + `scroll-margin-top`）与 `.toc-link` / `.toc-link-sub` / `.toc-link.is-active` |
+| `src/content.config.ts` | +2 行 | blog schema 加可选 `takeaway`，不填退回 `excerpt` |
+
+**关键实现取舍**（都验证过，别踩回去）：
+
+1. **`main > section:first-child` 那条避让固定头部的规则会失效**：新页面最外层套了一个 `<div>`（给 `.post-headings` 提供作用域），`<section>` 不再是 `<main>` 的直接子元素，所以 `padding-top: var(--header-height)` **匹配不到**。`PostHero` 自己写了 `pt-[var(--header-height)]` 补上 —— **以后再动这层结构务必留意**。
+2. **`.post-headings` 的作用域刻意收窄**：只挂在 hero 和正文容器上；`FeaturedArticles` 的卡片标题**故意不加**，保持模板原本的 Caveat Brush（这点和参考稿一致 —— 参考稿的卡片标题也是手写体）。
+3. **锚点 id 不需要插件**：Astro v4 起会自动给 markdown 标题加 `id`，且 `headings[].slug` 就是那个 id。产物实测：`<h2 id="about-luna">`。
+4. **目录高亮没用 Alpine**：滚动驱动状态，改用原生脚本 + `astro:page-load`，并在 `astro:before-swap` 注销监听（项目约定见 `AGENTS.md` 第 3 节）。在 ClientRouter 下这比 Alpine 的 init 时机更稳。
+5. **hero 渐变复用站内色板**：`from-teal-50 via-white to-fuchsia-50`（= `#f0fdfa / #fff / #fdf4ff`）；参考稿实测是 `#f1fefb / #fff / #fef8ff`，肉眼无差 —— **没有引入新色相**。另外几个绝对值 `#efede5`（暖灰带）、`#e6f6ee`（配图衬边）、`#192c58`（标题藏青）、`#fafafa`（目录面板）是按参考稿取的。
+6. **目录小标题的位置做了纠正**：参考稿把「Table of Contents」画在列表**下方**，那是稿子的笔误，实现里放回列表上方。
+7. **小屏（< lg）整块隐藏目录**（`hidden lg:block`）：长目录会把正文顶下去很远。参考稿只有桌面稿，移动端要不要做可折叠目录待定。
+
+**验证（2026-09-18，`npm run build`）**：exit 0、**20 页 2.58s**、sitemap 19 条；`dist/` 82 文件 9.2 MB；`dist/blog/new-arrival-luna/index.html` 141284 字节。
+产物比对：**没有** `dist/_legacy/` 路由；`dist/_astro/Container.CQwilMLe.css` 里能搜到 `.post-headings :is(h1,h2,h3,h4,h5,h6){font-family:var(--font-sans);color:#192c58}`、`.toc-link{…}`、`.toc-link.is-active{…color:var(--color-teal-600)}`、`--font-sans` 有定义；页面 HTML 里有 `data-toc-link` / `toc-link` / `Featured Articles` / `Key Takeaway` / `All blogs`。
+
+**尚未处理（上线前要过一遍）**：`FOLLOW ON GOOGLE` 是 `href="#"` 的假徽章（本站还没有 Google 发布者主页）；分享只做了 3 个入口（参考稿画了 8 个）；Featured 位目前只有 2 张卡（站内共 3 篇，刻意排除了当前这篇）；`.post-headings` 目前**只作用于文章页**，是否全站推行未定。
+
 
 ## 9. 目标站点（petmd.com）的差距分析
 
@@ -913,7 +1082,7 @@ git -c safe.directory=D:/WorkSpace/meepal-site-Templte/pawstronaut status --porc
 
 ## 12. 待确认问题（等用户回答，不要自行假设）
 
-> **唯一事实来源是 `AGENTS.md` 第 7 节**（已整理为编号 1~14）。此处不再重复维护同一份清单，只补细节，避免两处漂移。
+> **唯一事实来源是 `AGENTS.md` 第 7 节**（已整理为编号 1~13）。此处不再重复维护同一份清单，只补细节，避免两处漂移。
 
 **已确认（2026-09-14）**：品牌名 **meepal**；上线域名 **meepal.pet**；测试站托管 **Cloudflare**；范围 = 轻量级、快速上线、不对标 petmd；分类名**暂用占位**（不阻塞）。
 
@@ -922,5 +1091,38 @@ git -c safe.directory=D:/WorkSpace/meepal-site-Templte/pawstronaut status --porc
 - **第 4 条「占位文案由谁写」**：现有占位文案的完整清单见 8.3 第 4 条，以及 8.7 的「用户待办清单」表。
 - **第 5 条「联系方式」**：实测取值 —— `src/data/config.ts:17-20` phone = `(123) 456-789` / `tel:+123456789`；`:27-33` address = `1234 Space Street` / `Galaxy City` / `12345` / `Milky Way` / `Space`。**Contact 页与页脚会显示，上线前必须替换。**
 - **第 6 条「favicon / logo」**：当前仍是模板猫爪图标，未替换为 meepal 的品牌视觉。
-- **第 13 条「场景叠卡点击语义」**：我实现的是「点哪张哪张翻到最前」。用户参考稿 `D:\WorkSpace\meepal-site\meepal-home-v3.html` 的 `.scene-grid` 原本是**三列平铺网格**（CSS 在 243~275 行，标记在 854~882 行），**没有现成交互可对照** —— 所以「点击切换顺序」的具体行为是我按字面要求设计的，需用户确认。若要改成轮换 / 自动播放，只动 `SceneStack.astro` 的 `bring()`。
-- **第 14 条「插画能否商用」**：4 advantages 的 3 张插画复制自 `D:\WorkSpace\meepal-site-Templte\purrfectly-zen-astro`（`package.json` 声明 MIT、作者 Fauzira Alpiandi）。**推断** MIT 覆盖的是代码，模板内附插画的授权范围需用户上线前自行确认。
+- **第 8 条「Cloudflare 部署细节」**：部署前基线与推荐构建配置见 **7.4**（20 页 2.65s / `dist` 79 文件 9.2 MB / Astro preset + `npm run build` + `dist` + `NODE_VERSION=22.12.0`）。项目类型未确认。
+- **第 11 条「场景叠卡点击语义」**：我实现的是「点哪张哪张翻到最前」。用户参考稿 `D:\WorkSpace\meepal-site\meepal-home-v3.html` 的 `.scene-grid` 原本是**三列平铺网格**（CSS 在 243~275 行，标记在 854~882 行），**没有现成交互可对照** —— 所以「点击切换顺序」的具体行为是我按字面要求设计的，需用户确认。若要改成轮换 / 自动播放，只动 `SceneStack.astro` 的 `bring()`。
+- **第 12 条「插画能否商用」**：4 advantages 的 3 张插画复制自 `D:\WorkSpace\meepal-site-Templte\purrfectly-zen-astro`（`package.json` 声明 MIT、作者 Fauzira Alpiandi）。**推断** MIT 覆盖的是代码，模板内附插画的授权范围需用户上线前自行确认。
+### 8.18 添加首篇真实长文《First-Time Cat Owner Guide》（2026-09-18 已完成并实测）
+
+**来源**：`D:\WorkSpace\src\kitten-care\first-time-cat-owner-tips.md`，带 `images/` 子目录（6 张图）。
+
+**导入前存在的问题与清洗动作**：
+1. **元数据写在正文里**：原文前 8 行为自然语言形式的 `Meta Title` / `Meta Description` / `Suggested URL Slug` 等草稿；已全部提取为标准的 Astro frontmatter（`title` / `slug: first-time-cat-owner-guide` / `image` / `imageAlt` / `excerpt` / `takeaway` / `category: adoption` / `tags` / `author`）。
+2. **配图命名缺失**：原文引用了 `guide-1~6`，但本地磁盘上只有 `guide-1/2/3/6`，另两张是微信导出的长名字 `微信图片_20260916105534_10673_2.png` 和 `...10674_2.png`。像素核对与文意比对确认：10673 为幼猫进食图（对应 `guide-4`），10674 为「人类食物黑名单」信息图（对应 `guide-5`）。6 张图统一复制并规范命名到 `src/assets/images/blog/first-time-cat-owner/`，第一张作为 hero 大图。
+3. **内联 HTML 图片容器清洗**：原文用了 6 处带内联样式的 `<div style="text-align: center; ..."><img ... /></div>`，已被转为 Astro 原生支持的标准 markdown 图片语法 `![alt](../../assets/images/...)`，走 Vite + Astro 图片处理管道，自动转出 WebP。
+4. **JSON-LD 从代码围栏解开**：原文结尾的 FAQ 结构化数据被包裹在 ````html` 代码块内，无法被搜索引擎作为真实结构化数据抓取。已解开代码围栏，直接输出为 `<script type="application/ld+json">` 注入页面。
+5. **站内链接修正**：原文有一处指向未上线分类的假链接 `/blogs/cat-care/...`，修正为 `/blog/...` 避免 404。
+
+**实测验证**：
+- `npm run build` exit 0，**构建产物增至 21 个页面**（2.80s），sitemap 包含 20 条有效 URL，新增 `/blog/first-time-cat-owner-guide/`。
+- 页面 HTML 195 KB，6 张配图全部自动转为 WebP（体积大幅优化），目录自动提取了完整的 20+ 个 h2/h3 小节。
+
+### 8.19 文章页长目录滚动条与封面装饰卡视觉优化（2026-09-18 已完成并实测）
+
+**用户反馈（2026-09-18）**：
+1. 左侧小目录过长时无法完整显示，需增加滑动条；
+2. 封面图底部的薄荷绿不明显，参考图三增加横向与底部错位，并增加 -3° Rotation。
+
+**改动与取舍**：
+1. **侧栏长目录自适应滚动条**（`src/components/TableOfContents.astro` + `src/styles/global.css`）：
+   - 面板设 `max-h-[calc(100vh-8.5rem)] flex flex-col`，短文章自适应高度，长文章达到上限后触发内部滚动；
+   - 列表容器设 `min-h-0 flex-1 overflow-y-auto .toc-scroll`，配合 4px 纤细圆角滚动条，标题和底部分享入口保持固定不随目录滚动；
+   - 滚动联动脚本增加 `scrollTop` 自动校准：当读者向下阅读时，若高亮小节滑出侧栏可视区，平滑微调滚动位置确保高亮条目始终在视口内。
+2. **封面图薄荷绿层错位与 -3° 旋转**（`src/components/PostHero.astro`）：
+   - 底层薄荷绿卡片改用更清新的 `#d8ede4`，增加横向与纵向错位 `translate-x-3.5 translate-y-4 sm:translate-x-4 sm:translate-y-4 lg:translate-x-5 lg:translate-y-5 -rotate-3 rounded-[2rem]`；
+   - 顶层主图卡片增加白底边框 `bg-white p-2 sm:p-2.5 shadow-md rounded-[2rem]`，对齐 Figma Frame 67/66 的设计层次，使右下与底部的薄荷绿自然而明显地探出。
+
+**实测验证**：
+- `npm run build` exit 0，21 页 3.56s，产物 CSS 正常输出 `.toc-scroll`、`-rotate-3` 以及 `#d8ede4` 类名。

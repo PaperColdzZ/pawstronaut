@@ -1,0 +1,142 @@
+---
+/**
+ * TableOfContents —— 文章页左栏的目录面板
+ *
+ * 数据来自 Astro 内置的 render(post).headings，不需要 rehype-slug 之类的插件：
+ * Astro 会自动给 markdown 标题加 id，且 headings 里的 slug 就是那个 id，可以直接做锚点。
+ * 只列 h2 / h3 —— 再往下的层级对读者导航意义不大，全列进去只会把面板撑得很长。
+ *
+ * 「当前读到哪一节」的高亮用原生脚本实现（见文件底部），没有用 Alpine：
+ * 这是滚动驱动的状态，而且要跨 ClientRouter 的页面切换生效。
+ * 按项目约定，客户端脚本一律监听 astro:page-load（不是 DOMContentLoaded）。
+ */
+import type { MarkdownHeading } from "astro";
+import ShareIcons from "./ShareIcons.astro";
+
+interface Props {
+	/** render(post) 返回的 headings */
+	headings?: MarkdownHeading[];
+	/** 文章绝对地址，给分享按钮用 */
+	url: string;
+	/** 文章标题，给分享文案用 */
+	title: string;
+}
+
+const { headings = [], url, title } = Astro.props;
+
+const items = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+
+// 太短的文章没有小节，整块不渲染（这一列留空，不影响正文列宽）
+if (items.length === 0) return;
+---
+
+<aside class="hidden lg:sticky lg:top-28 lg:block lg:self-start">
+	<!-- 侧栏面板：限制最大高度不超过视口（扣除固定头部与底部边距），内部采用 flex-col 布局。
+	     短文章自适应高度，长文章自动激活内部滚动条，保证面板底部始终完整可见。 -->
+	<div
+		class="flex max-h-[calc(100vh-8.5rem)] flex-col rounded-2xl bg-[#fafafa] p-5 shadow-sm ring-1 ring-gray-100/80"
+		data-toc-panel
+	>
+		<!-- 面板顶部固定标题：shrink-0 确保不被压缩，不随目录条目滚动 -->
+		<p class="shrink-0 text-sm font-bold text-gray-700">Table of Contents</p>
+
+		<!-- 目录列表滚动容器：min-h-0 + flex-1 允许在 flex 布局下产生内部垂直滚动；
+		     配合 .toc-scroll 极简滚动条样式，长目录顺畅滑动且不遮挡内容 -->
+		<div class="toc-scroll mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+			<ul class="space-y-1">
+				{
+					items.map((heading) => (
+						<li>
+							<a
+								href={`#${heading.slug}`}
+								data-toc-link={heading.slug}
+								class:list={["toc-link", heading.depth === 3 && "toc-link-sub"]}
+							>
+								{heading.text}
+							</a>
+						</li>
+					))
+				}
+			</ul>
+		</div>
+
+		<!-- 面板底部分享入口：固定在面板底部，不随目录条目滚动 -->
+		<div class="mt-4 shrink-0 border-t border-gray-200 pt-4">
+			<ShareIcons url={url} title={title} />
+		</div>
+	</div>
+</aside>
+
+<script>
+	// 目录「当前小节」高亮：滚动驱动，用原生脚本比 Alpine 更稳
+	// （ClientRouter 让页面不整页重载，所以监听 astro:page-load；
+	//   同时在 astro:before-swap 注销上一次的监听，避免来回切页后监听越挂越多）
+	let dispose = () => {};
+
+	document.addEventListener("astro:before-swap", () => dispose());
+
+	document.addEventListener("astro:page-load", () => {
+		dispose();
+
+		const panel = document.querySelector("[data-toc-panel]");
+		if (!panel) return;
+
+		const scrollContainer = panel.querySelector(".toc-scroll");
+		const links = Array.from(panel.querySelectorAll("[data-toc-link]"));
+		const targets = links
+			.map((link) => document.getElementById(link.dataset.tocLink))
+			.filter((el) => el !== null);
+		if (targets.length === 0) return;
+
+		let frame = 0;
+
+		const paint = (id) => {
+			let activeLink = null;
+			links.forEach((link) => {
+				const active = link.dataset.tocLink === id;
+				link.classList.toggle("is-active", active);
+				if (active) activeLink = link;
+			});
+
+			// 当正在阅读的小节在长目录中滑出视口时，微调滚动条保持高亮项在侧栏可见
+			if (scrollContainer && activeLink) {
+				const linkTop = activeLink.offsetTop;
+				const linkBottom = linkTop + activeLink.offsetHeight;
+				const viewTop = scrollContainer.scrollTop;
+				const viewBottom = viewTop + scrollContainer.clientHeight;
+				if (linkTop < viewTop) {
+					scrollContainer.scrollTop = linkTop;
+				} else if (linkBottom > viewBottom) {
+					scrollContainer.scrollTop = linkBottom - scrollContainer.clientHeight;
+				}
+			}
+		};
+
+		const update = () => {
+			frame = 0;
+			// 视口上方「最近越过」的那个标题，就是读者正在看的小节。
+			// 160px ≈ 浮动头部高度 + 一点余量，和 global.css 里的 scroll-margin-top 呼应。
+			const offset = 160;
+			let current = targets[0].id;
+			for (const target of targets) {
+				if (target.getBoundingClientRect().top - offset <= 0) current = target.id;
+			}
+			paint(current);
+		};
+
+		const onScroll = () => {
+			if (!frame) frame = requestAnimationFrame(update);
+		};
+
+		window.addEventListener("scroll", onScroll, { passive: true });
+		window.addEventListener("resize", onScroll);
+		update();
+
+		dispose = () => {
+			window.removeEventListener("scroll", onScroll);
+			window.removeEventListener("resize", onScroll);
+			if (frame) cancelAnimationFrame(frame);
+			dispose = () => {};
+		};
+	});
+</script>

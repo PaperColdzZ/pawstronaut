@@ -239,3 +239,63 @@ label {
 	font-weight: 400;
 	src: url("/fonts/caveat/caveat-brush-v11-latin-regular.woff2") format("woff2");
 }
+
+/* ------------------------------------------------------------------
+   文章页（blog 详情）重排版 —— 2026-09-18，样式参照 D:\WorkSpace\Group 2.png
+   ------------------------------------------------------------------ */
+
+/* 文章页的标题改成无衬线粗体 + 深藏青，覆盖上面 h1~h6 的 Caveat Brush 手写体。
+   这个类只加在文章页的 hero 和正文容器上（.post-headings），
+   首页 / 归档页 / 卡片一律不受影响，仍然用手写体。
+   选择器特异性 (0,1,1) 高于 h1~h6 的 (0,0,1)，
+   也高于 typography 插件里用 :where() 写的 0 特异性规则，所以能稳稳压住。 */
+.post-headings :is(h1, h2, h3, h4, h5, h6) {
+	@apply font-sans text-[#192c58];
+}
+
+/* 点目录跳转时给浮动的固定头部留出余量，否则标题会被头部盖住 */
+.post-headings :is(h1, h2, h3, h4, h5, h6)[id] {
+	scroll-margin-top: calc(var(--header-height) + 2rem);
+}
+
+/* 目录项：默认灰字 + 左侧一条透明竖条占位；
+   当前读到的小节由 TableOfContents.astro 里的脚本切到 .is-active */
+.toc-link {
+	@apply block border-l-2 border-transparent py-1 pl-3 text-sm leading-snug text-gray-400 transition-colors;
+}
+
+.toc-link:hover {
+	@apply text-gray-600;
+}
+
+/* h3 层级往里缩一格，和 h2 区分开（必须写在 .toc-link 之后才能压过它的 pl-3） */
+.toc-link-sub {
+	@apply pl-6;
+}
+
+.toc-link.is-active {
+	@apply border-teal-400 font-semibold text-teal-600;
+}
+
+/* 自定义极简滚动条：供侧栏长目录使用，在 Windows/Mac 上保持纤细美观，避免破坏侧栏排版 */
+.toc-scroll {
+	scrollbar-width: thin;
+	scrollbar-color: #cbd5e1 transparent;
+}
+
+.toc-scroll::-webkit-scrollbar {
+	width: 4px;
+}
+
+.toc-scroll::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.toc-scroll::-webkit-scrollbar-thumb {
+	background-color: #cbd5e1;
+	border-radius: 9999px;
+}
+
+.toc-scroll::-webkit-scrollbar-thumb:hover {
+	background-color: #94a3b8;
+}

@@ -54,9 +54,8 @@
 - 本文件保持**精简可扫读**（**目标 < 24 KB**；2026-09-15 为 23.9 KB）。超出时按此优先级瘦身：先删第 5 节的历史叙述，再删第 9 节最旧的日志行，再压第 6/7 节措辞 —— **都先搬进 `docs/PROJECT-CONTEXT.md`，不要直接丢。**
 - **写补丁时注意（已犯过的错误，别再犯）**：
   1. 要删除的旧行必须带 `-` 前缀；写成上下文行（` ` 前缀）会让新旧内容并存。**改行 = 删一行 + 加一行。**
-  2. **补丁里的行必须与文件逐字节一致**（含行尾与前导空格）；表格行最容易多写或少写 `|`。
-  3. 别整块替换 40 行大段（按语义拆成 3~4 个小补丁）；补丁后**必须回读验证**，`{}` 只代表语法通过。
-  5. 一个补丁里的多个 `@@` hunk **必须按文件中的先后顺序排列**，否则报 `Failed to find expected lines`（工具是从上一个 hunk 往后找的）。
+  2. **补丁里的行必须与文件逐字节一致**（含行尾与前导空格）；表格行最容易多写或少写 `|`；**改行 = 删一行 + 加一行**。
+  4. 别整块替换 40 行大段（拆成 3~4 个小补丁）；补丁后**必须回读验证**，`{}` 只代表语法通过；多个 `@@` 必须按文件先后顺序排列。
 - **第 5 节只放「现在是什么状态」**，历史过程一律移入 `docs/PROJECT-CONTEXT.md` 的对应小节，不要在本文件里堆积叙述。
 - 第 9 节变更日志只保留最近约 15 条，更早的整批移入 `docs/PROJECT-CONTEXT.md`。
 - 日期一律用绝对日期（YYYY-MM-DD），不要写「今天/昨天/上周」。
@@ -117,6 +116,10 @@
 - **首页「起步指南」区块（2026-09-15 新增）**：`index.astro` 的 `guides` 数组 + 组件 `GuideCards.astro`。两张纯色卡，底色是参考稿的 `--yellow(#f8d264)` / `--mint(#b7dbca)`（**全站调色板之外的新色相**）。配图用 `aspect-[3/2]` + `object-cover` 居中裁切（两张源图尺寸不同）。**Tailwind 只认字面量类名** —— `bg-[#f8d264]` 必须写成完整字符串，拼字符串不会生成 CSS。详见 8.12。
 - **首页「Dog health」区块（2026-09-15 新增）**：组件 `HealthCard.astro`（单卡：浅绿底 `#d8ecad` + 居中配图 + 标题），配图 `src/assets/images/dog-health-card.avif`。**hover 放大必须用外层 `overflow-hidden` 包一层**，详见 8.13。
 - **全站页脚 2026-09-15 已换成参考项目的版式**：品牌列（复用 `LogoContainer`）+ 三组横排导航（Explore / Company / Legal）+ 底栏版权与社交图标；参考稿的订阅 CTA 已按用户要求删除。图标是**只读 lucide dist 的几何数据**内联的，**没加图标库依赖**。详见 8.14。
+- **`@playform/inline` 级联风险**（09-15 发现，未修）：内联的关键 CSS 若排在样式表 `<link>` **之后**，其 `.grid-cols-1` 会压过样式表里的 `sm:`/`lg:`（同权重、后到者胜）→ **全站响应式静默失效**。本地 `dist/` 顺序是对的，线上/Mac 侧疑此。详见 8.15。
+- **blog 文章页 2026-09-18 已换成新版**：`/blog/<slug>/` 由 `src/pages/blog/[...slug].astro`（新版）生成；旧的同名文件**整文件搬到 `src/pages/_legacy/blog/[...slug].astro`**（Astro 不路由 `_` 开头的目录，纯留档、内容逐字未改）。新版 = `PostHero` + `TableOfContents` + `FeaturedArticles` 三个新组件，分享按钮是 `ShareIcons`。
+- **文章页标题排版走 `.post-headings` 类**（`global.css` 末尾）：把 h1~h6 从 Caveat Brush 手写体改成无衬线粗体 + 深藏青 `#192c58`，并给带 `id` 的标题加 `scroll-margin-top`。**这个类只挂在 hero 和正文容器上**，首页 / 归档页 / 卡片仍是手写体；要全站推行就把类挂到 `body` 或改 `global.css:128` 那条 h1~h6 规则。
+- **blog schema 新增可选字段 `takeaway`**（`src/content.config.ts`）：文章页「Key Takeaway」那段引导语；不填退回 `excerpt`，老文章照常构建。
 - **首页已有两段被 HTML 注释包住**：`Adopt a pet today!`（我按用户要求隐藏）、`Contact us today to adopt a cat`（**用户自己注释的，不是我删的**）。**代码逐字保留**，恢复只需删掉注释标记。实测 Astro **不渲染注释里的内容**；但**注释文本会原样进 HTML**，别往里塞大段内容。
 - **`Faq.astro` 曾被写出嵌套 `<dl>` 且只闭合一次**（2026-09-15 已修）。教训：**验证「失效类名」不能只看产物 CSS** —— 旧类名本就产不出 CSS，恰好掩盖了标记错误，必须回读标记本身。
 
@@ -137,24 +140,23 @@
 
 > 这里**只写「现在是什么状态」**；历史过程一律放 `docs/PROJECT-CONTEXT.md` 第 8 节。
 
-**已完成**
+**已完成**（证据与细节见 `docs/PROJECT-CONTEXT.md` 第 8.1~8.14、8.17 节）
 
-- 持久记忆机制已建立（细则见第 0 节）。
-- **第 1 步「止血」✅**（09-14）：Layout props 契约 + canonical / sitemap / robots / og-image + 品牌字符串 + 清模板痕迹。19 页全绿。
-- **第 2 步「立骨架」✅**（09-14）：分类体系（`topics.json` + `z.enum` 校验）、分类归档页、分页、面包屑、文章元信息行、修好 blog 排序。20 页全绿。
-- **首页五处区块 ✅ + 全站页脚改版 ✅**：hero 改版 + Trust badges（09-14）；「4 advantages」（09-15）；「场景叠放卡片」+ 隐藏 `Adopt a pet today!`（09-15，代码原样保留）；「起步指南」（09-15）；「Dog health」（09-15）；页脚换成参考稿版式（09-15）。顺手修掉 `Faq.astro` 的嵌套 `<dl>`。
+- **第 1、2 步（止血 / 立骨架）✅**（09-14），20 页全绿。
+- **首页五处区块 ✅ + 全站页脚改版 ✅**：hero 改版 + Trust badges（09-14）；「4 advantages」「场景叠放卡片」（含隐藏 `Adopt a pet today!`，代码原样保留）「起步指南」「Dog health」+ 页脚换参考稿版式（09-15）。顺手修掉 `Faq.astro` 的嵌套 `<dl>`。
+ - **blog 文章页改版 ✅ + 首篇真实长文入库 ✅**（09-18）：新版三段式页面接管 `/blog/<slug>/`；长文 `first-time-cat-owner-guide.md`（含 6 张配图 + FAQ 结构化数据）已转入，构建产物增至 **21 页**（详见 8.17~8.18）。
 
 **开发状态**：用户已解除「暂停」指示，改为按功能需求逐项推进；第 3 步（结构化数据）与第 4 步（性能与表单）仍未开始。
 
-**最近一次实测**（2026-09-15，`npm run build`）：exit 0、**20 页 2.56s**、sitemap 19 条 URL；`dist/index.html` 168254 字节（连跑两次一致，产物确定）。
+**最近一次实测**（2026-09-18，长文入库后）：exit 0、**21 页 2.80s**、sitemap 20 条；长文 HTML 195422 字节、`dist/` 89 文件 10.4 MB。Node 要求 `^20.19.1 || >=22.12.0`（无 `.nvmrc`）。
 
 **当前状态**
 
 - 用户指示：**代码由用户自行审阅提交，我不代 commit / push**；**我不再验证渲染结果**；**小优化不必急着更新记忆**（第 4 节第 10 条 / 第 0.1 节）。
-- 工作区改动**全部未提交**（立骨架那批 + 首页 5 处区块 + 页脚改版 + `Faq.astro` 修复）。清单见 `docs/PROJECT-CONTEXT.md` 第 8.5 / 8.9~8.14 节。
-- 仍待拍板：见第 7 节；2026-09-14 的**「用户待办清单」**见 `docs/PROJECT-CONTEXT.md` 第 8.7 节。
+- 工作区**有未提交改动**（等用户审阅）：`AGENTS.md` + `docs/PROJECT-CONTEXT.md`（记忆）、`src/content.config.ts`、`src/styles/global.css`、`src/pages/blog/[...slug].astro`、**`src/pages/index.astro`（用户自己改的，不是我动的）**，另有 4 个新组件与 `src/pages/_legacy/`。`HEAD = origin/main = 2dd5855`。
+- **部署进展**：Worker / Workers Builds 流程已放弃（wrangler 自动装适配器失败，见 7.4），**已改用 Pages 部署成功**。**当前唯一待办 = 把自定义域从旧测试项目迁到新 Pages 项目**（步骤见 `docs/PROJECT-CONTEXT.md` 7.4）。
+- 仍待拍板：见第 7 节（我 09-14 交付的待办清单见 `PROJECT-CONTEXT.md` 8.7）。
 
-**4 步路线**：1 止血 ✅ · 2 立骨架 ✅ · 3 结构化数据（JSON-LD / RSS / TOC）· 4 性能与表单（hero 图 / CSS 重复投递 / 表单后端）。
 
 
 ## 6. 已确认决策
@@ -163,13 +165,10 @@
 
 | 日期 | 决策 | 影响 |
 |---|---|---|
-| 2026-09-14 | 建立持久记忆机制：`AGENTS.md`（每会话自动加载）+ `docs/PROJECT-CONTEXT.md`（详细知识库）两层；**关键沟通与工作内容必须及时跟进、更新到记忆里** | 升级为第 0 节强制协议：触发条件 + 动作清单 + 时机 + 收尾自检 |
+| 2026-09-14 | 建立持久记忆机制：`AGENTS.md` + `docs/PROJECT-CONTEXT.md` 两层 | 关键沟通/工作内容必须及时落盘（第 0 节强制协议） |
 | 2026-09-14 | **品牌名 meepal / 域名 meepal.pet / Cloudflare 托管 / 目标 = petmd 风格的结构化内容营销站但不对标 / 范围下调为「健康、轻量、快速上线」** | 这几条基础事实同时写在第 2 节，此处不重复展开；细节见 `docs/PROJECT-CONTEXT.md` |
-| 2026-09-14 | **雏形改好前不碰线上**（不部署、不管线上内容） | 本步所有工作只在本地 |
-| 2026-09-14 | **否决「为了轻量而砍功能」**，定为**只增不删 + 先留字段后建页面** | 标签/作者页暂不建但 schema 留位；petmd 仅作内容形态参考 |
-| 2026-09-14 | **不删减任何现有页面或功能**；对「砍掉」这类说法高度敏感 | 后续一律**只增不删**。我此前说「砍掉作者页/面包屑」意思是**不新建**，已澄清 |
-| 2026-09-14 | **改造必须保守，避免偏离模板既有风格** | 新功能沿用模板自身写法与组件；不引入新架构风格、不重写现有组件 |
-| 2026-09-14 | **动手前先确认范围**：大改动先把计划讲清楚再执行 | 文件级改动清单先给用户过目；一次只推进一步；每步可构建、可回退 |
+| 2026-09-14 | **只增不删**：不删任何现有页面或功能（「砍掉」= 不新建），先留字段后建页面 | 标签/作者页暂不建但 schema 留位；petmd 仅作内容形态参考 |
+| 2026-09-14 | **改造保守**（沿用模板写法与组件）+ **大改动先讲清计划再执行** | 文件级清单先给用户过目；一次一步；每步可构建、可回退 |
 | 2026-09-14 | **`PaperColdzZ/pawstronaut` 是用户自有仓库，目前只有其在维护** | 「推送到他人仓库」的顾虑解除；上线前仍宜确认 remote 定位 |
 | 2026-09-14 | **代码由用户自行审阅并提交，我不代为 commit** | 除非用户明确要求，否则不执行 `git commit` / `git push` |
 | 2026-09-14 | **第 1、2 步（止血 / 立骨架 2a->2b->2c）均获授权并已完成** | 基线 commit `4f51880` 已推送，后续可 `git diff` / `git revert`。详见 8.1~8.5 |
@@ -178,6 +177,9 @@
 | 2026-09-15 | **隐藏首页「Adopt a pet today!」区块，且用注释而非删除** | 用户明确要求保留代码。恢复 = 删掉那对 `<!-- -->`；实测注释内容不渲染 |
 | 2026-09-15 | **首页新增「场景叠放卡片」区块**：交互沿用已有的 Alpine.js、**不新增依赖**；点击语义 = 点哪张哪张翻到最前 | 新增 `SceneStack.astro`；数据在 `index.astro` 的 `scenes` 数组；图片 `scene-card1~3.jpeg` |
 | 2026-09-15 | **用户说明不需要我验证结果**（自己看，要改会告诉我） | 见第 4 节第 10 条；我保留最低成本的 `npm run build` 检查 |
+| 2026-09-18 | **文章页底部「Featured Articles」放 3 篇文章卡**（不是参考稿画的猫卡） | 复用 `CardBlogPost`；用户原话「你的想法是对的」 |
+| 2026-09-18 | **文章页标题不再用手写体**，按参考稿改成无衬线粗体 | 通过 `.post-headings` 只作用于文章页；要不要全站铺开见第 7 节 |
+| 2026-09-18 | **旧版文章页不需要还能打开**，静默留档即可 | 整文件搬进 `src/pages/_legacy/`，不建对比路由、不进 sitemap |
 
 ## 7. 待确认（不要自行假设）
 
@@ -192,12 +194,16 @@
 5. **联系方式**：`config.ts:28-29` 的 street / city 与 phone 仍是模板占位（email 已改为 `info@meepal.pet`）；Contact 页与页脚会显示。
 6. **是否更换 favicon / logo / 页脚分组名**（logo 仍是模板猫爪；分组名 Explore / Company / Legal 是我定的占位）；**是否压缩 hero 图**（源 2.4 MB -> 3.67 MB PNG 回退）。
 7. **表单后端选型**：Cloudflare Pages Functions / Formspree / Web3Forms？`output` 现为 `static`，接函数需评估是否改 `server`。
-8. **Cloudflare 部署细节**：项目名、生产分支、Pages 还是 Workers？
+8. **Cloudflare 部署细节**：**已定 = Pages**（部署成功）。剩余：自定义域从旧测试项目迁到新项目（步骤见 7.4）、旧测试项目何时删、是否要 `www` 301 到 apex。
 9. **是否把未发布的空分类也做成页面**（当前不生成）。若要，需同时解决 sitemap 排除问题。
 10. **内容来源 / 多语言**：Markdown + JSON 还是接 CMS？要不要多语言？（按轻量原则，**推断**都先不上 —— Markdown + 只做英文）
 11. **场景叠卡的点击语义**：我实现的是「点哪张哪张翻到最前」；参考稿 `meepal-home-v3.html` 的 `scene-grid` 原本是三列平铺、没有现成交互可对照。若想要轮换 / 自动播放 / 只让最上面那张可点，说一声就改（改 `SceneStack.astro` 的 `bring()`）。
 12. **复制过来的插画能否商用**：素材来自 `purrfectly-zen-astro`（MIT，作者 Fauzira Alpiandi）。**推断** MIT 覆盖代码，模板内附插画的授权需用户上线前自行确认。
 13. **「指南」类链接全是占位**：起步指南的 `Open guide`（cat → `/topics/adoption/`，dog → `/blog/`）与 dog health 的 `Read the dental guide`（→ `/blog/`）。原因：`/topics/behavior/`、`/topics/grooming/` **目前没有文章、不会生成页面**，指过去会 404。等有真正的指南页要换掉。
+14. **文章页的「无衬线标题」要不要全站铺开**？09-18 只改到文章页（`.post-headings`）；首页 / 归档页 / 卡片仍是 Caveat Brush 手写体。
+15. **文章页两处占位待处理**：`PostHero` 里的 `FOLLOW ON GOOGLE`（`href="#"` + 字母 G 圆牌，本站还没有 Google 发布者主页）与 `ShareIcons` 的分享入口（只做了 Facebook / X / 邮件三个真链接，参考稿画了 8 个）。上线前要么补真实链接、要么删掉。
+16. **文章页 Featured 位**：站内现有 4 篇文章；打开其他旧文时，Featured 位已自动填满 3 张推荐卡（新长文被推荐）；打开新长文时展示其余 3 篇旧文。
+17. **文章页左栏目录在小屏（< lg）整块隐藏**（`hidden lg:block`），避免长目录把正文顶下去。参考稿只有桌面稿，移动端要不要做可折叠目录待定。
 
 ## 8. 给未来会话的建议阅读顺序
 
@@ -210,8 +216,11 @@
 
 | 日期 | 事件 |
 |---|---|
-| 2026-09-14~15 | 止血 / 立骨架 / hero 改版 + Trust badges / 「4 advantages」/「代码加中文注释」规则 / 隐藏 `Adopt a pet today!` + 场景叠放卡片 等逐条日志**已归档到 `docs/PROJECT-CONTEXT.md` 第 8.1~8.11 节**。 |
-| 2026-09-15 | **场景叠卡视觉调优**（用户反馈「卡片过大 + 重叠太高点不到」）：卡片加 `max-width`（lg 38rem / 手机 30rem），`--deck-x` 1.5rem->3rem、`--deck-scale-step` 0.05->0.03，可见错开 5px -> 40px。**根因：中心缩放抵消了位移。** 详见 `docs/PROJECT-CONTEXT.md` 8.11。 |
-| 2026-09-15 | **新增首页「起步指南」区块**（用户要求，取自参考稿 `meepal-home-v3.html` 的 `<section class="guides">`）：左文案 + 右两张纯色卡片（yellow/mint）。**新增 1 个组件** `GuideCards.astro`。实测 20 页 exit 0 / 2.63s。详见 8.12。 |
-| 2026-09-15 | **新增首页「Dog health」区块**（用户要求，取自参考稿的 `<section class="dog-health">`）：左文案 + 右侧浅绿卡片。**新增 1 个组件** `HealthCard.astro`；配图 `dog-health-card.avif` 按 `aspect-[3/2]` 居中裁切。实测 20 页 exit 0 / 2.74s。详见 8.13。 |
-| 2026-09-15 | **全站页脚换成参考项目 `purrfectly-zen-astro` 的版式**（用户要求）：品牌列 + 三组导航**横排**（Explore / Company / Legal）+ 底栏版权与社交图标；**订阅 CTA 按要求整块删除**。只改 `Footer.astro` 一个文件，20 页全变。实测 20 页 exit 0 / 2.56s / `index.html` 168254 字节。详见 8.14。 |
+| 2026-09-14~15 | 早期逐条日志**已归档到 `docs/PROJECT-CONTEXT.md` 8.1~8.10**。 |
+| 2026-09-15 | 场景叠卡视觉调优（`--deck-x` 3rem / 卡片加 `max-width`）、新增「起步指南」区 + `GuideCards.astro`、新增「Dog health」区 + `HealthCard.astro`、全站页脚换参考稿版式（订阅 CTA 整块删除）—— 这 4 项**已归档到 `docs/PROJECT-CONTEXT.md` 8.11~8.14**，各次实测均 20 页 exit 0（2.56~2.74s）。 |
+| 2026-09-15 | **部署阶段**：用户提交推送 `2dd5855` 后转干净；Worker / Workers Builds 路径因 wrangler 自动装适配器失败而放弃（根因是 `output: "static"` 不需要适配器），**改用 Cloudflare Pages 部署成功**（`npm run build` + output `dist`）。**待办 = 自定义域从旧测试项目迁到新 Pages 项目**。细节见 `docs/PROJECT-CONTEXT.md` 7.4。 |
+| 2026-09-15 | **排查「Mac 端排版异常」**（**未改任何代码**，只取证）：截图实测证明该页面里基础规则压过了响应式规则；本地 `dist/` 的顺序正确 ⇒ 差异在另一次构建（线上/Mac 侧）。详见 8.15。 |
+| 2026-09-18 | **用户提出 blog 文章页改版**（新模板 + 旧版隐藏不删，参考 `D:\WorkSpace\Group 2.svg/png`）：本轮只做取证（配色/色带/结构像素实测）与方案 + 5 个待确认问题，**未改任何代码**。详见 8.16。另：本轮瘦身约 0.7 KB（合并 3 条已过时的 §6 决策行、压缩 §0.5/§5 措辞），仍约 24.4 KB、略超目标，下轮继续搬 §5/§6 历史到 `PROJECT-CONTEXT.md`。 |
+| 2026-09-18 | **blog 文章页改版已实现并构建通过**：新增 `PostHero` / `TableOfContents` / `ShareIcons` / `FeaturedArticles` 四个组件，新页接管 `/blog/<slug>/`，旧页整文件搬进 `src/pages/_legacy/blog/[...slug].astro`（内容逐字未改）；`global.css` 加 `.post-headings`（无衬线粗体 + 深藏青 + 锚点余量）与 `.toc-link` 系列；`content.config.ts` 加可选 `takeaway`。实测 `npm run build` exit 0 / **20 页 2.58s** / sitemap 19 条 / 产物里没有 `_legacy` 路由。详见 8.17。 |
+| 2026-09-18 | **添加长文 `first-time-cat-owner-guide`**：从 `D:\WorkSpace\src\kitten-care` 导入；配图 6 张（含 2 张微信临时命名图）对齐并复制到 `src/assets/images/blog/first-time-cat-owner/`；清洗内联 HTML 图片为 markdown 语法，代码块内 JSON-LD 释放为真正 `<script type="application/ld+json">`；实测构建 21 页 exit 0 / sitemap 20 条。详见 8.18。 |
+| 2026-09-18 | **长目录滑动条与封面图薄荷绿层视觉优化**：`TableOfContents.astro` 增内部 `.toc-scroll`（4px 极简条，标题与底部分享固定不滚动，阅读位置自动居中）；`PostHero.astro` 薄荷绿底卡加横向/底部错位与 `-3°` 旋转，配图增加白底边框（对齐 Figma Frame 67/66）；实测构建 21 页 exit 0（3.56s）。详见 8.19。 |

@@ -1,0 +1,91 @@
+---
+/**
+ * PostHero —— blog 文章页顶部的「hero 带」
+ *
+ * 版式参照 D:\WorkSpace\Group 2.png 的第一屏：
+ *   左列 = 大标题 + 「Updated 日期 by 作者」 + FOLLOW ON GOOGLE 徽章占位；
+ *   右列 = 大圆角配图，下方露出一圈浅薄荷色衬边。
+ * 底色是文章页专属的「左薄荷 → 中白 → 右粉」水平渐变，
+ * 用的是站内已有色板（teal-50 / white / fuchsia-50），没有引入新色相。
+ *
+ * 注意：本组件的 <section> 被页面根 <div> 包着，匹配不到 global.css 里
+ * 'main > section:first-child { padding-top: var(--header-height) }' 那条避让固定头部的规则，
+ * 所以这里必须自己写 pt-[var(--header-height)]。
+ * --header-height 由 Header.astro 在运行时实测写入，测不到时有 7rem 兜底。
+ */
+import { Image } from "astro:assets";
+import Container from "./Container.astro";
+import { formatDate } from "~/utils/blog";
+
+interface Props {
+	/** 文章标题 */
+	title: string;
+	/** 配图，必须是 astro:assets 导入的图片资源（项目约定：图片放 src/assets，不放 public） */
+	image: ImageMetadata;
+	/** 配图替代文本 */
+	imageAlt: string;
+	/** 首次发布时间 */
+	publishDate: Date;
+	/** 更新时间；不填就退回显示发布时间 */
+	updatedDate?: Date;
+	/** 作者名；不填就只显示日期 */
+	author?: string;
+}
+
+const { title, image, imageAlt, publishDate, updatedDate, author } = Astro.props;
+
+// 参考稿写的是「Updated Jan 27, 2026 by 作者名字」。
+// 两个字段都可选：没有 updatedDate 就显示 Published，没有 author 就只显示日期，
+// 老文章不补字段也能正常渲染，不会因为缺字段而报错。
+const stampDate = updatedDate ?? publishDate;
+const stampLabel = updatedDate ? "Updated" : "Published";
+const dateText = formatDate(stampDate);
+---
+
+<section class="bg-gradient-to-r from-teal-50 via-white to-fuchsia-50 pt-[var(--header-height)]">
+	<Container contain={false} class="container pt-8 pb-16 lg:pt-12 lg:pb-24">
+		<div class="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+			<!-- 左列：post-headings 让这里的标题改用无衬线粗体 + 深藏青（见 global.css） -->
+			<div class="post-headings">
+				<h1 class="max-w-[22ch] text-4xl leading-[1.08] sm:text-5xl">{title}</h1>
+
+				<p class="mt-6 text-base text-gray-600">
+					{stampLabel}
+					<time datetime={stampDate.toISOString()}>{dateText}</time>
+					{author ? ` by ${author}` : ""}
+				</p>
+
+				<!-- 占位：参考稿这里是 FOLLOW ON GOOGLE 徽章，本站还没有 Google 发布者主页，先做静态占位 -->
+				<a
+					href="#"
+					class="mt-10 inline-flex items-center gap-2.5 rounded-full bg-white px-4 py-2 text-xs font-bold tracking-[0.14em] text-gray-700 uppercase shadow-sm ring-1 ring-gray-200/80 transition hover:text-fuchsia-500"
+				>
+					<span
+						class="grid size-6 place-items-center rounded-full text-base font-bold text-[#4285f4] ring-1 ring-gray-200"
+						aria-hidden="true">G</span
+					>
+					Follow on Google
+				</a>
+			</div>
+
+			<!-- 右列配图：参考图三（Figma Frame 67/66）—— 底层薄荷绿卡片增加横向与底部错位并逆时针旋转 -3°，顶层白底卡片内嵌配图 -->
+			<div class="relative pr-3 pb-3 sm:pr-5 sm:pb-5">
+				<!-- 底层薄荷绿装饰卡片：横向与底部明显错位，配合 -3° 旋转，清晰展露右侧与底部轮廓 -->
+				<div
+					class="absolute inset-0 translate-x-3.5 translate-y-4 sm:translate-x-4 sm:translate-y-4 lg:translate-x-5 lg:translate-y-5 rotate-3 rounded-[2rem] bg-[#d8ede4]"
+					aria-hidden="true"
+				></div>
+
+				<!-- 顶层主图卡片：白底边框 + 柔和阴影，内嵌圆角配图 -->
+				<div class="relative overflow-hidden rounded-[2rem] rotate-3 bg-white p-2 shadow-md sm:p-2.5">
+					<Image
+						src={image}
+						alt={imageAlt}
+						width={1200}
+						class:list={"aspect-[3/2] w-full rounded-[1.5rem] object-cover"}
+					/>
+				</div>
+			</div>
+		</div>
+	</Container>
+</section>

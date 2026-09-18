@@ -1,0 +1,48 @@
+---
+/**
+ * FeaturedArticles —— 文章页底部的「Featured Articles」区块
+ *
+ * 对应参考稿的第三屏：一条暖灰（#efede5）全宽标题带（左标题 + 右 VIEW ALL），
+ * 下面接一排文章卡。卡片直接复用站内已有的 CardBlogPost（和 /blog 归档页同一套），
+ * 不另造一套卡片样式；卡片标题刻意不加 .post-headings，保持项目原本的手写体。
+ */
+import Container from "./Container.astro";
+import CardBlogPost from "./CardBlogPost.astro";
+import type { PostEntry } from "~/utils/blog";
+
+interface Props {
+	/** 要展示的文章（调用方已筛好排序） */
+	posts?: PostEntry[];
+	/** 区块标题 */
+	title?: string;
+	/** 右上角 VIEW ALL 指向哪里 */
+	viewAllUrl?: string;
+}
+
+const { posts = [], title = "Featured Articles", viewAllUrl = "/blog/" } = Astro.props;
+
+// 没有可推荐的文章就整块不渲染，避免出现一条只有标题的空带子
+if (posts.length === 0) return;
+---
+
+<section class="bg-[#efede5]">
+	<Container contain={false} class="container py-12 lg:py-14">
+		<div class="post-headings flex flex-wrap items-center justify-between gap-4">
+			<h2 class="text-3xl lg:text-4xl">{title}</h2>
+			<a
+				href={viewAllUrl}
+				class="border-b-2 border-gray-700 pb-0.5 text-xs font-bold tracking-[0.14em] text-gray-700 uppercase transition hover:border-brand-fuchsia hover:text-brand-fuchsia"
+			>
+				View all
+			</a>
+		</div>
+	</Container>
+</section>
+
+<section>
+	<Container contain={false} class="container py-14 lg:py-20">
+		<div class="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+			{posts.map((post) => <CardBlogPost post={post} />)}
+		</div>
+	</Container>
+</section>

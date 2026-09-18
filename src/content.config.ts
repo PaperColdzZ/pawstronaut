@@ -62,6 +62,8 @@ const blog = defineCollection({
 			category: z.enum(topicIds).optional(),
 			tags: z.array(z.string()).default([]),
 			author: z.string().optional(),
+			// 文章页「Key Takeaway」那段加粗引导语；不填就退回用 excerpt，老文章照常构建
+			takeaway: z.string().optional(),
 		}),
 });
 

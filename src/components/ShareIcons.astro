@@ -1,0 +1,77 @@
+---
+/**
+ * ShareIcons —— 文章页侧栏底部的分享按钮
+ *
+ * 参考稿那里是两行共 8 个圆形图标（Facebook / X / Pinterest / TikTok / Telegram / WhatsApp 等）。
+ * 项目只有 facebook、x、instagram、youtube 四个图标资源，且约定不新增依赖，
+ * 所以这里先做 3 个「真能用」的分享入口：Facebook / X / 邮件。
+ * 三个都是纯链接，不需要 JS、不需要后端 —— 直接指向各家自己的分享接口。
+ *
+ * 想补 WhatsApp / LinkedIn 之类的：往下面的 shareTargets 加一项，再补一个图标即可。
+ */
+import IconFacebook from "~/assets/icons/facebook.svg";
+import IconX from "~/assets/icons/x.svg";
+
+interface Props {
+	/** 文章绝对地址 */
+	url: string;
+	/** 文章标题，作为分享文案 */
+	title: string;
+}
+
+const { url, title } = Astro.props;
+
+const shareTargets = [
+	{
+		label: "Share on Facebook",
+		icon: "facebook",
+		blank: true,
+		href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+	},
+	{
+		label: "Share on X",
+		icon: "x",
+		blank: true,
+		href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`,
+	},
+	{
+		// mailto 不需要也不会开新标签页
+		label: "Share by email",
+		icon: "email",
+		blank: false,
+		href: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`,
+	},
+];
+---
+
+<div class="flex flex-wrap gap-2">
+	{
+		shareTargets.map((target) => (
+			<a
+				href={target.href}
+				target={target.blank ? "_blank" : undefined}
+				rel={target.blank ? "noopener noreferrer" : undefined}
+				aria-label={target.label}
+				title={target.label}
+				class="grid size-10 place-items-center rounded-full bg-white text-gray-500 ring-1 ring-gray-200 transition hover:text-fuchsia-500 hover:ring-fuchsia-300"
+			>
+				{target.icon === "facebook" && <IconFacebook class="size-5" />}
+				{target.icon === "x" && <IconX class="size-5" />}
+				{target.icon === "email" && (
+					/* 项目没有邮件图标，用「圆角矩形 + 折线」手写一个，几何简单不会画歪 */
+					<svg
+						class="size-5"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.6"
+						aria-hidden="true"
+					>
+						<rect x="3" y="5" width="18" height="14" rx="2" />
+						<path d="m3.6 7.2 8.4 5.8 8.4-5.8" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				)}
+			</a>
+		))
+	}
+</div>
