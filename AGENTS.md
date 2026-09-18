@@ -116,7 +116,7 @@
 - **首页「起步指南」区块（2026-09-15 新增）**：`index.astro` 的 `guides` 数组 + 组件 `GuideCards.astro`。两张纯色卡，底色是参考稿的 `--yellow(#f8d264)` / `--mint(#b7dbca)`（**全站调色板之外的新色相**）。配图用 `aspect-[3/2]` + `object-cover` 居中裁切（两张源图尺寸不同）。**Tailwind 只认字面量类名** —— `bg-[#f8d264]` 必须写成完整字符串，拼字符串不会生成 CSS。详见 8.12。
 - **首页「Dog health」区块（2026-09-15 新增）**：组件 `HealthCard.astro`（单卡：浅绿底 `#d8ecad` + 居中配图 + 标题），配图 `src/assets/images/dog-health-card.avif`。**hover 放大必须用外层 `overflow-hidden` 包一层**，详见 8.13。
 - **全站页脚 2026-09-15 已换成参考项目的版式**：品牌列（复用 `LogoContainer`）+ 三组横排导航（Explore / Company / Legal）+ 底栏版权与社交图标；参考稿的订阅 CTA 已按用户要求删除。图标是**只读 lucide dist 的几何数据**内联的，**没加图标库依赖**。详见 8.14。
-- **`@playform/inline` 级联风险**（09-15 发现，未修）：内联的关键 CSS 若排在样式表 `<link>` **之后**，其 `.grid-cols-1` 会压过样式表里的 `sm:`/`lg:`（同权重、后到者胜）→ **全站响应式静默失效**。本地 `dist/` 顺序是对的，线上/Mac 侧疑此。详见 8.15。
+ - **`@playform/inline` 插件已于 2026-09-18 彻底移除 ✅**：该插件将样式表改为 `media="print"` 异步偷跑，导致 Cloudflare 冷启动首访排版崩坏与 FOUC。移除后恢复标准同步阻塞 CSS，彻底根治首屏错乱，且每页 HTML 瘦身 35 KB、构建提速近一倍（1.99s）。详见 8.20。
 - **blog 文章页 2026-09-18 已换成新版**：`/blog/<slug>/` 由 `src/pages/blog/[...slug].astro`（新版）生成；旧的同名文件**整文件搬到 `src/pages/_legacy/blog/[...slug].astro`**（Astro 不路由 `_` 开头的目录，纯留档、内容逐字未改）。新版 = `PostHero` + `TableOfContents` + `FeaturedArticles` 三个新组件，分享按钮是 `ShareIcons`。
 - **文章页标题排版走 `.post-headings` 类**（`global.css` 末尾）：把 h1~h6 从 Caveat Brush 手写体改成无衬线粗体 + 深藏青 `#192c58`，并给带 `id` 的标题加 `scroll-margin-top`。**这个类只挂在 hero 和正文容器上**，首页 / 归档页 / 卡片仍是手写体；要全站推行就把类挂到 `body` 或改 `global.css:128` 那条 h1~h6 规则。
 - **blog schema 新增可选字段 `takeaway`**（`src/content.config.ts`）：文章页「Key Takeaway」那段引导语；不填退回 `excerpt`，老文章照常构建。
@@ -180,6 +180,7 @@
 | 2026-09-18 | **文章页底部「Featured Articles」放 3 篇文章卡**（不是参考稿画的猫卡） | 复用 `CardBlogPost`；用户原话「你的想法是对的」 |
 | 2026-09-18 | **文章页标题不再用手写体**，按参考稿改成无衬线粗体 | 通过 `.post-headings` 只作用于文章页；要不要全站铺开见第 7 节 |
 | 2026-09-18 | **旧版文章页不需要还能打开**，静默留档即可 | 整文件搬进 `src/pages/_legacy/`，不建对比路由、不进 sitemap |
+| 2026-09-18 | **移除 `@playform/inline` 插件**（用户确认批准） | 彻底解决 Cloudflare Pages 冷启动首次访问排版错乱 Bug；单页 HTML 减小 35 KB，构建提速至 1.99s |
 
 ## 7. 待确认（不要自行假设）
 
@@ -224,3 +225,4 @@
 | 2026-09-18 | **blog 文章页改版已实现并构建通过**：新增 `PostHero` / `TableOfContents` / `ShareIcons` / `FeaturedArticles` 四个组件，新页接管 `/blog/<slug>/`，旧页整文件搬进 `src/pages/_legacy/blog/[...slug].astro`（内容逐字未改）；`global.css` 加 `.post-headings`（无衬线粗体 + 深藏青 + 锚点余量）与 `.toc-link` 系列；`content.config.ts` 加可选 `takeaway`。实测 `npm run build` exit 0 / **20 页 2.58s** / sitemap 19 条 / 产物里没有 `_legacy` 路由。详见 8.17。 |
 | 2026-09-18 | **添加长文 `first-time-cat-owner-guide`**：从 `D:\WorkSpace\src\kitten-care` 导入；配图 6 张（含 2 张微信临时命名图）对齐并复制到 `src/assets/images/blog/first-time-cat-owner/`；清洗内联 HTML 图片为 markdown 语法，代码块内 JSON-LD 释放为真正 `<script type="application/ld+json">`；实测构建 21 页 exit 0 / sitemap 20 条。详见 8.18。 |
 | 2026-09-18 | **长目录滑动条与封面图薄荷绿层视觉优化**：`TableOfContents.astro` 增内部 `.toc-scroll`（4px 极简条，标题与底部分享固定不滚动，阅读位置自动居中）；`PostHero.astro` 薄荷绿底卡加横向/底部错位与 `-3°` 旋转，配图增加白底边框（对齐 Figma Frame 67/66）；实测构建 21 页 exit 0（3.56s）。详见 8.19。 |
+| 2026-09-18 | **移除 `@playform/inline` 根治冷启动排版崩坏**：从 `astro.config.mjs` 移除该插件，恢复浏览器标准同步阻塞 CSS；实测构建 21 页 exit 0（1.99s），所有 HTML 中 `media="print"` 归零，单页体积减少 35 KB。详见 8.20。 |

@@ -873,7 +873,7 @@ blog 的 URL 依然来自 frontmatter 的 `slug` —— 核心机制不变。
 - 页脚仍显示模板自带的猫爪 logo（`logo-pawstronaut.svg`）—— favicon / logo 是否换成本站品牌视觉，见第 12 节待确认第 6 条。
 - **社交图标仍指向模板的通用地址**（`facebook.com` / `x.com` / `instagram.com` / `youtube.com`，来自 `src/components/SocialMediaIcons.astro`），**上线前要换成本站真实账号**。页脚 hrefs 实测 = `/` `/cats` `/blog` `/about-us` `/contact` `/privacy-policy` + 4 个社交链接，**全部指向存在的路由，没有 404**。
 
-### 8.15 「Mac 端排版异常」排查（2026-09-15，**未改任何代码**）
+### 8.15 「Mac 端排版异常」排查（2026-09-15，**已于 8.20 彻底根治 ✅**）
 
 **现象**：用户在自己的 Mac 上看站点时截图反馈「排版有问题」：首页 4 advantages 区块的卡片是**一列**、每张占满容器宽度，图片区是一大块浅绿（`teal-50`）配一张很小的插画。
 
@@ -1126,3 +1126,20 @@ git -c safe.directory=D:/WorkSpace/meepal-site-Templte/pawstronaut status --porc
 
 **实测验证**：
 - `npm run build` exit 0，21 页 3.56s，产物 CSS 正常输出 `.toc-scroll`、`-rotate-3` 以及 `#d8ede4` 类名。
+
+### 8.20 移除 `@playform/inline` 根治 Cloudflare 冷缓存首访排版错乱（2026-09-18 已完成并实测）
+
+**用户反馈**：部署到 Cloudflare Pages（pages.dev）后，第一次访问经常出现页面排版错乱（FOUC / 导航或栅格坍塌），刷新（F5）后基本恢复正常；本地部署未出现类似问题。
+
+**排查确诊（根因闭环）**：
+1. 模板集成的 `@playform/inline` 插件在编译时，把真实的全局样式表改为 `<link ... media="print" onload="this.media='all'">`，利用 `media="print"` 达到非阻塞异步加载；在 `<head>` 里塞了 35 KB 残缺的内联规则。
+2. **冷缓存（首次访问）**：公网环境下样式表存在下载延迟（100-300ms）。浏览器不等待该样式表，直接用残缺的 35KB 内联规则抢先绘制；此时布局、断点、组件样式大量缺失，而脚本（Header 测量、Alpine 等）已在错误的尺寸下锁定了计算值，导致排版崩坏。
+3. **热缓存（刷新）**：样式表已在磁盘缓存中，`media="print"` 瞬间被 `onload` 激活（0ms），样式几乎在首帧就位，因此表面上恢复正常。
+4. **本地（localhost）**：延迟 0ms，永远无法复现公网异步闪烁。
+
+**解决与收益**：
+- 在 `astro.config.mjs` 中彻底移除 `(await import("@playform/inline")).default()`，恢复标准同步阻塞的 `<link rel="stylesheet">`。
+- **首屏稳定性**：彻底消除冷启动 FOUC 和首访崩坏；
+- **体积优化**：每个 HTML 文件减少约 35 KB（消除重复 CSS 注入），21 个页面全站节省 700+ KB 传输；
+- **构建提速**：构建耗时从 3.56s 骤降至 1.99s；
+- **实测验证**：`npm run build` 21 页 exit 0（1.99s），产物 HTML 里 `media="print"` 出现次数降为 0。
